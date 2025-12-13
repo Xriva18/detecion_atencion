@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import VideoCanvas from "@/components/Camera/VideoCanvas";
-import BlinkCounter from "@/components/Parapadeo/BlinkCounter";
 import ConnectionStatusIndicator from "@/components/ConnectionStatusIndicator";
 import { useCamera } from "@/hooks/useCamera";
 import { useConnectionStatus } from "@/hooks/useConnectionStatus";
@@ -11,7 +10,7 @@ import { useFaceDetection } from "@/hooks/useFaceDetection";
 
 export default function Home() {
   const { stream, isLoading, error } = useCamera();
-  const [blinkCount] = useState(0);
+
   const [isPaused, setIsPaused] = useState(false);
   const { saludo, saludoError, saludoLoading } = useSaludo();
   const { connectionStatus, handleFrameSent, handleFrameError } =
@@ -97,7 +96,6 @@ export default function Home() {
                 >
                   {isPaused ? "▶ Reanudar Video" : "⏸ Pausar Video"}
                 </button>
-                <BlinkCounter count={blinkCount} />
               </div>
 
               {/* Columna derecha: Mensaje del servidor y detalles - Solo en md y mayores */}
