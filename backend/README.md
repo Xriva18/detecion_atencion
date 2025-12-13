@@ -7,6 +7,14 @@
 pip install -r requirements.txt
 ```
 
+2. (Opcional) Configurar variables de entorno:
+```bash
+# Crear archivo .env con:
+PYTHONDONTWRITEBYTECODE=1
+```
+
+**Nota:** El código ya está configurado para evitar la generación de `__pycache__` automáticamente. Si prefieres usar variables de entorno, crea un archivo `.env` con `PYTHONDONTWRITEBYTECODE=1`.
+
 ## Ejecución
 
 Para ejecutar el servidor en modo desarrollo:

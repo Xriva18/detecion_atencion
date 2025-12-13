@@ -1,6 +1,10 @@
+import os
 import base64
 import re
 from typing import Optional
+
+# Desactivar generación de archivos .pyc y __pycache__
+os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 
 import cv2
 import mediapipe as mp
