@@ -1,106 +1,24 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import VideoCanvas from "@/components/Camera/VideoCanvas";
 import BlinkCounter from "@/components/Parapadeo/BlinkCounter";
+import ConnectionStatusIndicator from "@/components/ConnectionStatusIndicator";
 import { useCamera } from "@/hooks/useCamera";
-import { obtenerSaludo } from "@/services/checkService";
-import type { FaceDetectionResponse } from "@/types/detection";
-import { ApiError, ErrorType } from "@/services/error";
-
-type ConnectionStatus = "connected" | "disconnected" | "checking";
+import { useConnectionStatus } from "@/hooks/useConnectionStatus";
+import { useSaludo } from "@/hooks/useSaludo";
 
 export default function Home() {
   const { stream, isLoading, error } = useCamera();
   const [blinkCount] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const [saludo, setSaludo] = useState<string | null>(null);
-  const [saludoError, setSaludoError] = useState<string | null>(null);
-  const [saludoLoading, setSaludoLoading] = useState(true);
-  const [connectionStatus, setConnectionStatus] =
-    useState<ConnectionStatus>("checking");
-  const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const cargarSaludo = async () => {
-      try {
-        setSaludoLoading(true);
-        setSaludoError(null);
-        const respuesta = await obtenerSaludo();
-
-        // Solo actualizar el estado si el componente sigue montado
-        if (isMounted) {
-          setSaludo(respuesta.mensaje);
-        }
-      } catch (error) {
-        // Solo actualizar el estado si el componente sigue montado
-        if (isMounted) {
-          setSaludoError(
-            error instanceof Error ? error.message : "Error desconocido"
-          );
-        }
-        // Log del error para debugging
-        console.error("Error al cargar saludo:", error);
-      } finally {
-        if (isMounted) {
-          setSaludoLoading(false);
-        }
-      }
-    };
-
-    cargarSaludo();
-
-    // Cleanup function
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const { saludo, saludoError, saludoLoading } = useSaludo();
+  const { connectionStatus, handleFrameSent, handleFrameError } =
+    useConnectionStatus();
 
   const togglePause = () => {
     setIsPaused((prev) => !prev);
   };
-
-  // Callback cuando se envía un frame exitosamente
-  const handleFrameSent = (response: FaceDetectionResponse) => {
-    setConnectionStatus("connected");
-    // Limpiar timeout anterior si existe
-    if (connectionTimeoutRef.current) {
-      clearTimeout(connectionTimeoutRef.current);
-      connectionTimeoutRef.current = null;
-    }
-    // Si no hay respuesta en 1 segundo, marcar como desconectado
-    connectionTimeoutRef.current = setTimeout(() => {
-      setConnectionStatus("disconnected");
-    }, 1000);
-  };
-
-  // Callback cuando hay error al enviar frame
-  const handleFrameError = (error: Error) => {
-    // Solo marcar como desconectado si es un error de red o timeout
-    if (error instanceof ApiError) {
-      if (
-        error.type === ErrorType.NETWORK_ERROR ||
-        error.type === ErrorType.TIMEOUT_ERROR ||
-        error.type === ErrorType.CORS_ERROR
-      ) {
-        setConnectionStatus("disconnected");
-      }
-    } else {
-      // Para otros errores, también marcar como desconectado
-      setConnectionStatus("disconnected");
-    }
-  };
-
-  // Cleanup del timeout al desmontar
-  useEffect(() => {
-    return () => {
-      if (connectionTimeoutRef.current) {
-        clearTimeout(connectionTimeoutRef.current);
-      }
-    };
-  }, []);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
@@ -148,25 +66,7 @@ export default function Home() {
               </div>
 
               <div className="flex flex-col items-center gap-4">
-                {/* Indicador de estado de conexión */}
-                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800">
-                  <div
-                    className={`w-3 h-3 rounded-full ${
-                      connectionStatus === "connected"
-                        ? "bg-green-500"
-                        : connectionStatus === "disconnected"
-                        ? "bg-red-500"
-                        : "bg-yellow-500"
-                    }`}
-                  />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {connectionStatus === "connected"
-                      ? "Conectado"
-                      : connectionStatus === "disconnected"
-                      ? "Desconectado"
-                      : "Verificando..."}
-                  </span>
-                </div>
+                <ConnectionStatusIndicator status={connectionStatus} />
 
                 <VideoCanvas
                   stream={stream}
