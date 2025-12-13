@@ -22,7 +22,7 @@ export function useFaceDetection() {
   });
 
   const frameCountRef = useRef(0);
-  const lastFpsUpdateRef = useRef(Date.now());
+  const lastFpsUpdateRef = useRef<number>(0);
   const fpsIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Función para actualizar el estado de detección
@@ -92,4 +92,3 @@ export function useFaceDetection() {
     stopFpsCalculation,
   };
 }
-
