@@ -1,14 +1,55 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import VideoCanvas from "@/components/Camera/VideoCanvas";
 import BlinkCounter from "@/components/Parapadeo/BlinkCounter";
 import { useCamera } from "@/hooks/useCamera";
+import { obtenerSaludo } from "@/services/checkService";
 
 export default function Home() {
   const { stream, isLoading, error } = useCamera();
   const [blinkCount] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [saludo, setSaludo] = useState<string | null>(null);
+  const [saludoError, setSaludoError] = useState<string | null>(null);
+  const [saludoLoading, setSaludoLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const cargarSaludo = async () => {
+      try {
+        setSaludoLoading(true);
+        setSaludoError(null);
+        const respuesta = await obtenerSaludo();
+
+        // Solo actualizar el estado si el componente sigue montado
+        if (isMounted) {
+          setSaludo(respuesta.mensaje);
+        }
+      } catch (error) {
+        // Solo actualizar el estado si el componente sigue montado
+        if (isMounted) {
+          setSaludoError(
+            error instanceof Error ? error.message : "Error desconocido"
+          );
+        }
+        // Log del error para debugging
+        console.error("Error al cargar saludo:", error);
+      } finally {
+        if (isMounted) {
+          setSaludoLoading(false);
+        }
+      }
+    };
+
+    cargarSaludo();
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const togglePause = () => {
     setIsPaused((prev) => !prev);
@@ -37,6 +78,28 @@ export default function Home() {
 
           {!isLoading && !error && (
             <>
+              {/* Mensaje del servidor */}
+              <div className="w-full max-w-md p-4 border-2 border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900">
+                <h3 className="text-lg font-semibold text-black dark:text-white mb-2">
+                  Mensaje del Servidor:
+                </h3>
+                {saludoLoading && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Cargando...
+                  </p>
+                )}
+                {saludoError && (
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    Error: {saludoError}
+                  </p>
+                )}
+                {saludo && !saludoLoading && (
+                  <p className="text-lg font-medium text-green-600 dark:text-green-400">
+                    {saludo}
+                  </p>
+                )}
+              </div>
+
               <div className="flex flex-col items-center gap-4">
                 <VideoCanvas
                   stream={stream}
