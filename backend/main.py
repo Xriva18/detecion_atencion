@@ -33,7 +33,7 @@ class Coordinates(BaseModel):
     h: int
 
 
-class FaceDetectionResponse(BaseModel):
+class FaceDetectionResponse(BaseModel): 
     detected: bool
     coordinates: Optional[Coordinates] = None
     confidence: float
