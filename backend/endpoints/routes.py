@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from endpoints.api import face, saludo
+from endpoints.api import detect, check
 
 
 def register_routes(app: FastAPI) -> None:
@@ -11,8 +11,8 @@ def register_routes(app: FastAPI) -> None:
         app: Instancia de FastAPI
     """
     # Registrar router de saludo
-    app.include_router(saludo.router)
+    app.include_router(check.router)
     
     # Registrar router de detección de rostros
-    app.include_router(face.router)
+    app.include_router(detect.router)
 
