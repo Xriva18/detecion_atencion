@@ -11,6 +11,7 @@ export default function VideoCanvas({
   isPaused = false,
   onFrameSent,
   onFrameError,
+  faceCoordinates,
 }: VideoCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -30,7 +31,34 @@ export default function VideoCanvas({
 
     const drawFrame = () => {
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        // Dibujar el frame del video
         ctx.drawImage(video, 0, 0, width, height);
+
+        // Dibujar rectángulo alrededor del rostro solo si está detectado y el video no está pausado
+        if (faceCoordinates && !isPaused) {
+          const { x, y, w, h } = faceCoordinates;
+          
+          // Configurar estilo del rectángulo
+          ctx.strokeStyle = "#00ff00"; // Verde
+          ctx.lineWidth = 3;
+          ctx.setLineDash([]);
+          
+          // Dibujar rectángulo (tener en cuenta el flip horizontal del canvas)
+          // Como el canvas tiene transform: scaleX(-1), necesitamos ajustar las coordenadas
+          const adjustedX = width - x - w;
+          ctx.strokeRect(adjustedX, y, w, h);
+
+          // Agregar etiqueta (el texto también se volteará con el canvas, así que ajustamos)
+          ctx.save();
+          ctx.scale(-1, 1);
+          ctx.fillStyle = "#00ff00";
+          ctx.font = "16px Arial";
+          const textX = -(adjustedX + w / 2);
+          const textY = y > 20 ? y - 5 : y + h + 20;
+          ctx.textAlign = "center";
+          ctx.fillText("Rostro detectado", textX, textY);
+          ctx.restore();
+        }
       }
       requestAnimationFrame(drawFrame);
     };
@@ -44,7 +72,7 @@ export default function VideoCanvas({
     return () => {
       video.srcObject = null;
     };
-  }, [stream, width, height]);
+  }, [stream, width, height, faceCoordinates, isPaused]);
 
   // Efecto para pausar/reanudar el video
   useEffect(() => {

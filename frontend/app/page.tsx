@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import VideoCanvas from "@/components/Camera/VideoCanvas";
 import BlinkCounter from "@/components/Parapadeo/BlinkCounter";
 import ConnectionStatusIndicator from "@/components/ConnectionStatusIndicator";
 import { useCamera } from "@/hooks/useCamera";
 import { useConnectionStatus } from "@/hooks/useConnectionStatus";
 import { useSaludo } from "@/hooks/useSaludo";
+import { useFaceDetection } from "@/hooks/useFaceDetection";
 
 export default function Home() {
   const { stream, isLoading, error } = useCamera();
@@ -15,6 +16,27 @@ export default function Home() {
   const { saludo, saludoError, saludoLoading } = useSaludo();
   const { connectionStatus, handleFrameSent, handleFrameError } =
     useConnectionStatus();
+  const { detectionState, updateDetection, startFpsCalculation, stopFpsCalculation } =
+    useFaceDetection();
+
+  // Iniciar cálculo de FPS cuando el stream esté disponible
+  useEffect(() => {
+    if (stream && !isPaused) {
+      startFpsCalculation();
+    } else {
+      stopFpsCalculation();
+    }
+
+    return () => {
+      stopFpsCalculation();
+    };
+  }, [stream, isPaused, startFpsCalculation, stopFpsCalculation]);
+
+  // Handler combinado para actualizar detección y estado de conexión
+  const handleFrameSentWithDetection = (response: import("@/types/detection").FaceDetectionResponse) => {
+    updateDetection(response);
+    handleFrameSent(response);
+  };
 
   const togglePause = () => {
     setIsPaused((prev) => !prev);
@@ -68,13 +90,58 @@ export default function Home() {
               <div className="flex flex-col items-center gap-4">
                 <ConnectionStatusIndicator status={connectionStatus} />
 
+                {/* Información de detección y FPS - Solo mostrar si está activo y conectado */}
+                {!isPaused && connectionStatus === "connected" && (
+                  <div className="w-full max-w-md p-4 border-2 border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-lg font-medium text-black dark:text-white">
+                          Rostro detectado:
+                        </span>
+                        <span
+                          className={`text-lg font-semibold ${
+                            detectionState.detected
+                              ? "text-green-600 dark:text-green-400"
+                              : "text-red-600 dark:text-red-400"
+                          }`}
+                        >
+                          {detectionState.detected ? "SÍ" : "NO"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-lg font-medium text-black dark:text-white">
+                          FPS:
+                        </span>
+                        <span className="text-lg font-semibold text-blue-600 dark:text-blue-400">
+                          {detectionState.fps}
+                        </span>
+                      </div>
+                      {detectionState.detected && detectionState.confidence > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">
+                            Confianza:
+                          </span>
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {(detectionState.confidence * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <VideoCanvas
                   stream={stream}
                   width={640}
                   height={480}
                   isPaused={isPaused}
-                  onFrameSent={handleFrameSent}
+                  onFrameSent={handleFrameSentWithDetection}
                   onFrameError={handleFrameError}
+                  faceCoordinates={
+                    !isPaused && connectionStatus === "connected" && detectionState.detected
+                      ? detectionState.coordinates
+                      : null
+                  }
                 />
                 <button
                   onClick={togglePause}

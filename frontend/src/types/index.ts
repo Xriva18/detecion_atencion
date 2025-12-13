@@ -11,6 +11,7 @@ export interface VideoCanvasProps {
   isPaused?: boolean;
   onFrameSent?: (response: import("@/types/detection").FaceDetectionResponse) => void;
   onFrameError?: (error: Error) => void;
+  faceCoordinates?: { x: number; y: number; w: number; h: number } | null;
 }
 
 export interface BlinkCounterProps {
