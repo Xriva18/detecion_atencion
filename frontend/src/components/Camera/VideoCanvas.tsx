@@ -158,7 +158,10 @@ export default function VideoCanvas({
 
   if (!stream) {
     return (
-      <div className="flex items-center justify-center bg-gray-200 dark:bg-gray-800 rounded-lg" style={{ width, height }}>
+      <div 
+        className="flex items-center justify-center bg-gray-200 dark:bg-gray-800 rounded-lg w-full max-w-full"
+        style={{ maxWidth: `${width}px`, aspectRatio: `${width}/${height}` }}
+      >
         <p className="text-gray-500 dark:text-gray-400">
           No hay señal de video disponible
         </p>
@@ -167,7 +170,7 @@ export default function VideoCanvas({
   }
 
   return (
-    <div className="relative">
+    <div className="relative w-full max-w-full">
       <video
         ref={videoRef}
         className="hidden"
@@ -177,8 +180,12 @@ export default function VideoCanvas({
       />
       <canvas
         ref={canvasRef}
-        className="rounded-lg border-2 border-gray-300 dark:border-gray-700"
-        style={{ width, height, transform: 'scaleX(-1)' }}
+        className="rounded-lg border-2 border-gray-300 dark:border-gray-700 w-full h-auto max-w-full"
+        style={{ 
+          maxWidth: `${width}px`, 
+          aspectRatio: `${width}/${height}`, 
+          transform: 'scaleX(-1)' 
+        }}
       />
     </div>
   );
