@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import VideoCanvas from "@/src/components/Camera/VideoCanvas";
-import BlinkCounter from "@/src/components/Parapadeo/BlinkCounter";
-import { useCamera } from "@/src/hooks/useCamera";
+import VideoCanvas from "@/components/Camera/VideoCanvas";
+import BlinkCounter from "@/components/Parapadeo/BlinkCounter";
+import { useCamera } from "@/hooks/useCamera";
 
 export default function Home() {
   const { stream, isLoading, error } = useCamera();
