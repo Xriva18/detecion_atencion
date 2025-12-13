@@ -8,7 +8,7 @@ async def saludo():
     """
     Endpoint que devuelve un saludo 'Hello World'
     """
-    return {"mensaje": "Hello World"}
+    return {"mensaje": "Levantado"}
 
 
 @router.get("/check/suma")
