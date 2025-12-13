@@ -9,6 +9,8 @@ export interface VideoCanvasProps {
   width?: number;
   height?: number;
   isPaused?: boolean;
+  onFrameSent?: (response: import("@/services/detectionService").FaceDetectionResponse) => void;
+  onFrameError?: (error: Error) => void;
 }
 
 export interface BlinkCounterProps {

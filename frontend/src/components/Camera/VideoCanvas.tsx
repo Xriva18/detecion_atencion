@@ -2,15 +2,19 @@
 
 import { useRef, useEffect } from "react";
 import type { VideoCanvasProps } from "@/types";
+import { enviarFrameAlBackend } from "@/services/detectionService";
 
 export default function VideoCanvas({
   stream,
   width = 640,
   height = 480,
   isPaused = false,
+  onFrameSent,
+  onFrameError,
 }: VideoCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const captureIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!stream || !videoRef.current || !canvasRef.current) return;
@@ -62,6 +66,67 @@ export default function VideoCanvas({
       }
     }
   }, [isPaused, stream]);
+
+  // Efecto para capturar frames cada 300ms
+  useEffect(() => {
+    if (!stream || !canvasRef.current || isPaused) {
+      // Limpiar intervalo si está pausado o no hay stream
+      if (captureIntervalRef.current) {
+        clearInterval(captureIntervalRef.current);
+        captureIntervalRef.current = null;
+      }
+      return;
+    }
+
+    // Función para capturar frame y enviarlo al backend
+    const capturarFrame = async () => {
+      if (!canvasRef.current || isPaused) return;
+
+      try {
+        const canvas = canvasRef.current;
+        // Convertir canvas a base64
+        const base64Image = canvas.toDataURL("image/jpeg", 0.8);
+
+        // Enviar al backend
+        const response = await enviarFrameAlBackend(base64Image);
+
+        // Llamar callback si está disponible
+        if (onFrameSent) {
+          onFrameSent(response);
+        }
+      } catch (error) {
+        // Manejar error sin bloquear la captura
+        if (onFrameError) {
+          onFrameError(
+            error instanceof Error ? error : new Error("Error desconocido")
+          );
+        }
+      }
+    };
+
+    // Esperar a que el canvas esté listo antes de empezar a capturar
+    const checkCanvasReady = () => {
+      if (canvasRef.current && canvasRef.current.width > 0) {
+        // Iniciar captura cada 300ms
+        captureIntervalRef.current = setInterval(() => {
+          capturarFrame();
+        }, 300);
+      } else {
+        // Reintentar después de un breve delay
+        setTimeout(checkCanvasReady, 100);
+      }
+    };
+
+    checkCanvasReady();
+
+    // Cleanup: limpiar intervalo al desmontar o cambiar dependencias
+    return () => {
+      if (captureIntervalRef.current) {
+        clearInterval(captureIntervalRef.current);
+        captureIntervalRef.current = null;
+      }
+    };
+  }, [stream, isPaused, onFrameSent, onFrameError]);
 
   if (!stream) {
     return (
