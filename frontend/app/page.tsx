@@ -8,6 +8,11 @@ import { useCamera } from "@/hooks/useCamera";
 export default function Home() {
   const { stream, isLoading, error } = useCamera();
   const [blinkCount] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  const togglePause = () => {
+    setIsPaused((prev) => !prev);
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
@@ -32,7 +37,20 @@ export default function Home() {
 
           {!isLoading && !error && (
             <>
-              <VideoCanvas stream={stream} width={640} height={480} />
+              <div className="flex flex-col items-center gap-4">
+                <VideoCanvas
+                  stream={stream}
+                  width={640}
+                  height={480}
+                  isPaused={isPaused}
+                />
+                <button
+                  onClick={togglePause}
+                  className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors shadow-md hover:shadow-lg"
+                >
+                  {isPaused ? "▶ Reanudar Video" : "⏸ Pausar Video"}
+                </button>
+              </div>
               <BlinkCounter count={blinkCount} />
             </>
           )}

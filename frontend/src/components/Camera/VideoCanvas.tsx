@@ -7,6 +7,7 @@ export default function VideoCanvas({
   stream,
   width = 640,
   height = 480,
+  isPaused = false,
 }: VideoCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -40,6 +41,27 @@ export default function VideoCanvas({
       video.srcObject = null;
     };
   }, [stream, width, height]);
+
+  // Efecto para pausar/reanudar el video
+  useEffect(() => {
+    if (!stream) return;
+
+    const tracks = stream.getVideoTracks();
+    tracks.forEach((track) => {
+      // Usar enabled en lugar de stop para poder reanudar
+      track.enabled = !isPaused;
+    });
+
+    if (videoRef.current) {
+      if (isPaused) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play().catch((err) => {
+          console.error("Error al reproducir video:", err);
+        });
+      }
+    }
+  }, [isPaused, stream]);
 
   if (!stream) {
     return (

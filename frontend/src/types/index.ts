@@ -8,6 +8,7 @@ export interface VideoCanvasProps {
   stream: MediaStream | null;
   width?: number;
   height?: number;
+  isPaused?: boolean;
 }
 
 export interface BlinkCounterProps {
