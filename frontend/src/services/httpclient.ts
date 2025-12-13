@@ -3,8 +3,7 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 /**
  * URL base de la API obtenida de las variables de entorno
  */
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 /**
  * Timeout por defecto para las peticiones (en milisegundos)
@@ -64,7 +63,7 @@ httpClient.interceptors.response.use(
 /**
  * Obtiene la URL base de la API
  */
-export const getApiBaseUrl = (): string => {
+export const getApiBaseUrl = (): string | undefined => {
   return API_BASE_URL;
 };
 
