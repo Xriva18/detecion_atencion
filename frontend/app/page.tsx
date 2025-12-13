@@ -5,7 +5,7 @@ import VideoCanvas from "@/components/Camera/VideoCanvas";
 import BlinkCounter from "@/components/Parapadeo/BlinkCounter";
 import { useCamera } from "@/hooks/useCamera";
 import { obtenerSaludo } from "@/services/checkService";
-import type { FaceDetectionResponse } from "@/services/detectionService";
+import type { FaceDetectionResponse } from "@/types/detection";
 import { ApiError, ErrorType } from "@/services/error";
 
 type ConnectionStatus = "connected" | "disconnected" | "checking";

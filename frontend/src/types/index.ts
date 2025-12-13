@@ -9,7 +9,7 @@ export interface VideoCanvasProps {
   width?: number;
   height?: number;
   isPaused?: boolean;
-  onFrameSent?: (response: import("@/services/detectionService").FaceDetectionResponse) => void;
+  onFrameSent?: (response: import("@/types/detection").FaceDetectionResponse) => void;
   onFrameError?: (error: Error) => void;
 }
 
