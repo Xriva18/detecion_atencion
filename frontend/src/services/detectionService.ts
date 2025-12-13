@@ -28,6 +28,9 @@ export async function enviarFrameAlBackend(
       requestBody
     );
 
+    // Imprimir respuesta de la API en consola
+    console.log("Respuesta de la API:", response.data);
+
     return response.data;
   } catch (error) {
     throw handleApiError(error);
