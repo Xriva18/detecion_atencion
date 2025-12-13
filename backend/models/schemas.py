@@ -18,3 +18,8 @@ class FaceDetectionResponse(BaseModel):
     coordinates: Optional[Coordinates] = None
     confidence: float
 
+
+class BlinkDetectionResponse(BaseModel):
+    blinking: bool
+    left_ear: float
+    right_ear: float
