@@ -63,7 +63,7 @@ export default function VideoCanvas({
       <canvas
         ref={canvasRef}
         className="rounded-lg border-2 border-gray-300 dark:border-gray-700"
-        style={{ width, height }}
+        style={{ width, height, transform: 'scaleX(-1)' }}
       />
     </div>
   );
