@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from endpoints.api import detect, check
-from endpoints.websockets import blink_count
+from endpoints.websockets import blink_count, blink_detection
 
 
 def register_routes(app: FastAPI) -> None:
@@ -17,6 +17,7 @@ def register_routes(app: FastAPI) -> None:
     # Registrar router de detección de rostros
     app.include_router(detect.router)
     
-    # Registrar router de WebSockets
+    # Registrar routers de WebSockets
     app.include_router(blink_count.router)
+    app.include_router(blink_detection.router)
 
