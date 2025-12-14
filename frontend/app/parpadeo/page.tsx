@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import VideoCanvasBlink from "@/components/Camera/VideoCanvasBlink";
 import ConnectionStatusIndicator from "@/components/ConnectionStatusIndicator";
 import BlinkCounter from "@/components/Parapadeo/BlinkCounter";
@@ -28,6 +28,103 @@ export default function ParpadeoPage() {
     enabled: !isPaused && connectionStatus === "connected",
     initialFetch: true,
   });
+
+  // Estado para detectar si está viendo la pantalla
+  const [isWatchingScreen, setIsWatchingScreen] = useState<boolean | null>(
+    null
+  );
+  const [changeCount, setChangeCount] = useState<number>(0);
+  const countHistoryRef = useRef<Array<{ count: number; timestamp: number }>>(
+    []
+  );
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Efecto para monitorear cambios en el conteo durante 10 segundos
+  useEffect(() => {
+    if (isPaused || connectionStatus !== "connected") {
+      setIsWatchingScreen(null);
+      setChangeCount(0);
+      countHistoryRef.current = [];
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+
+    // Agregar el conteo actual al historial solo si cambió desde la última entrada
+    const currentTime = Date.now();
+    const lastEntry =
+      countHistoryRef.current[countHistoryRef.current.length - 1];
+
+    // Solo agregar si el conteo cambió o si no hay entradas previas
+    if (!lastEntry || lastEntry.count !== blinkCount) {
+      countHistoryRef.current.push({
+        count: blinkCount,
+        timestamp: currentTime,
+      });
+    }
+
+    // Limpiar entradas más antiguas de 10 segundos
+    const tenSecondsAgo = currentTime - 10000;
+    countHistoryRef.current = countHistoryRef.current.filter(
+      (entry) => entry.timestamp > tenSecondsAgo
+    );
+
+    // Si tenemos suficientes datos (al menos 2 entradas en la ventana de 10 segundos)
+    if (countHistoryRef.current.length >= 2) {
+      // Contar cuántas veces cambia el conteo en la ventana de 10 segundos
+      let changeCount = 0;
+      for (let i = 1; i < countHistoryRef.current.length; i++) {
+        if (
+          countHistoryRef.current[i].count !==
+          countHistoryRef.current[i - 1].count
+        ) {
+          changeCount++;
+        }
+      }
+
+      // Si hay muchos cambios (más de 5), no está viendo la pantalla
+      // Si hay pocos cambios o es estable, está viendo
+      const threshold = 5; // Umbral de cambios para considerar que no está viendo
+      setChangeCount(changeCount);
+      setIsWatchingScreen(changeCount <= threshold);
+    }
+
+    // Configurar intervalo para evaluar cada segundo
+    if (!intervalRef.current) {
+      intervalRef.current = setInterval(() => {
+        const now = Date.now();
+        const tenSecondsAgo = now - 10000;
+        countHistoryRef.current = countHistoryRef.current.filter(
+          (entry) => entry.timestamp > tenSecondsAgo
+        );
+
+        if (countHistoryRef.current.length >= 2) {
+          // Contar cuántas veces cambia el conteo
+          let changeCount = 0;
+          for (let i = 1; i < countHistoryRef.current.length; i++) {
+            if (
+              countHistoryRef.current[i].count !==
+              countHistoryRef.current[i - 1].count
+            ) {
+              changeCount++;
+            }
+          }
+          const threshold = 5;
+          setChangeCount(changeCount);
+          setIsWatchingScreen(changeCount <= threshold);
+        }
+      }, 1000);
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [blinkCount, isPaused, connectionStatus]);
 
   // Handler para manejar la detección de parpadeos
   const handleBlinkDetection = () => {
@@ -60,7 +157,7 @@ export default function ParpadeoPage() {
       <main className="flex min-h-screen w-full max-w-7xl flex-col items-center justify-center py-4 px-4 sm:py-8 sm:px-6 lg:px-8 bg-white dark:bg-black">
         <div className="flex flex-col items-center justify-center gap-4 sm:gap-6 lg:gap-8 w-full flex-1">
           <h1 className="text-2xl sm:text-3xl font-bold text-black dark:text-white mb-2">
-            Detección de Parpadeos
+            Detección de Atención a la Pantalla
           </h1>
 
           {isLoading && (
@@ -145,6 +242,52 @@ export default function ParpadeoPage() {
                       Actualizando...
                     </p>
                   )}
+                  <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-700">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      Parámetro de evaluación (últimos 10 seg):
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-black dark:text-white">
+                        Cambios detectados:
+                      </span>
+                      <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                        {changeCount}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-sm font-medium text-black dark:text-white">
+                        Umbral máximo:
+                      </span>
+                      <span className="text-lg font-bold text-gray-600 dark:text-gray-400">
+                        5
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      {changeCount <= 5
+                        ? "✓ Estable (viendo pantalla)"
+                        : "✗ Muchos cambios (no viendo pantalla)"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Estado de atención a la pantalla */}
+                <div className="w-full p-3 sm:p-4 border-2 border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900">
+                  <h3 className="text-base sm:text-lg font-semibold text-black dark:text-white mb-2">
+                    Estado de Atención:
+                  </h3>
+                  {isWatchingScreen === null ? (
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Analizando...
+                    </p>
+                  ) : isWatchingScreen ? (
+                    <p className="text-sm sm:text-lg font-medium text-green-600 dark:text-green-400">
+                      ✓ Sí está viendo la pantalla
+                    </p>
+                  ) : (
+                    <p className="text-sm sm:text-lg font-medium text-red-600 dark:text-red-400">
+                      ✗ No está viendo la pantalla
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -180,6 +323,52 @@ export default function ParpadeoPage() {
                   {isLoadingCount && (
                     <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-2">
                       Actualizando...
+                    </p>
+                  )}
+                  <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-700">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      Parámetro de evaluación (últimos 10 seg):
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-black dark:text-white">
+                        Cambios detectados:
+                      </span>
+                      <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                        {changeCount}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-sm font-medium text-black dark:text-white">
+                        Umbral máximo:
+                      </span>
+                      <span className="text-lg font-bold text-gray-600 dark:text-gray-400">
+                        5
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      {changeCount <= 5
+                        ? "✓ Estable (viendo pantalla)"
+                        : "✗ Muchos cambios (no viendo pantalla)"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Estado de atención a la pantalla */}
+                <div className="w-full p-3 sm:p-4 border-2 border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900">
+                  <h3 className="text-base sm:text-lg font-semibold text-black dark:text-white mb-2">
+                    Estado de Atención:
+                  </h3>
+                  {isWatchingScreen === null ? (
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Analizando...
+                    </p>
+                  ) : isWatchingScreen ? (
+                    <p className="text-sm sm:text-lg font-medium text-green-600 dark:text-green-400">
+                      ✓ Sí está viendo la pantalla
+                    </p>
+                  ) : (
+                    <p className="text-sm sm:text-lg font-medium text-red-600 dark:text-red-400">
+                      ✗ No está viendo la pantalla
                     </p>
                   )}
                 </div>
