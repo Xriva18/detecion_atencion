@@ -2,12 +2,12 @@ import {
   WebSocketConfig,
   WebSocketCallbacks,
   WebSocketState,
+  WebSocketErrorType,
   ReconnectConfig,
   ReconnectInfo,
 } from "./types";
 import {
   WebSocketError,
-  WebSocketErrorType,
   handleWebSocketError,
   getCloseCodeMessage,
 } from "./errors";

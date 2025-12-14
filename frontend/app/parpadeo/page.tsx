@@ -1,87 +1,44 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import VideoCanvasBlink from "@/components/Camera/VideoCanvasBlink";
 import ConnectionStatusIndicator from "@/components/ConnectionStatusIndicator";
 import BlinkCounter from "@/components/Parapadeo/BlinkCounter";
 import { useCamera } from "@/hooks/useCamera";
 import { useConnectionStatus } from "@/hooks/useConnectionStatus";
 import { useSaludo } from "@/hooks/useSaludo";
-import {
-  obtenerContadorParpadeos,
-  reiniciarContadorParpadeos,
-} from "@/services/blinkService";
-import type { BlinkDetectionResponse } from "@/types/detection";
+import { useBlinkCountWebSocket } from "@/hooks/useBlinkCountWebSocket";
+import { reiniciarContadorParpadeos } from "@/services/blinkService";
 
 export default function ParpadeoPage() {
   const { stream, isLoading, error } = useCamera();
 
   const [isPaused, setIsPaused] = useState(false);
-  const [blinkCount, setBlinkCount] = useState(0);
-  const [isLoadingCount, setIsLoadingCount] = useState(false);
-  const countIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { saludo, saludoError, saludoLoading } = useSaludo();
   const { connectionStatus, handleFrameSent, handleFrameError } =
     useConnectionStatus();
 
+  // Hook para WebSocket del contador de parpadeos
+  // Se habilita cuando no está pausado y hay conexión
+  const {
+    blinkCount,
+    isLoading: isLoadingCount,
+    refresh: refreshBlinkCount,
+  } = useBlinkCountWebSocket({
+    enabled: !isPaused && connectionStatus === "connected",
+    initialFetch: true,
+  });
+
   // Handler para manejar la detección de parpadeos
-  const handleBlinkDetection = async (
-    response: BlinkDetectionResponse
-  ) => {
-    // Actualizar estado de conexión
-    handleFrameSent(response as any);
-    
-    // Si se detectó un parpadeo, actualizar el contador
-    if (response.blinking) {
-      try {
-        // Obtener el contador actualizado del servidor
-        const countResponse = await obtenerContadorParpadeos();
-        setBlinkCount(countResponse.blink_count);
-      } catch (error) {
-        console.error("Error al obtener contador de parpadeos:", error);
-      }
-    }
+  const handleBlinkDetection = () => {
+    // Actualizar estado de conexión (convertir BlinkDetectionResponse a FaceDetectionResponse para compatibilidad)
+    handleFrameSent({
+      detected: true,
+      coordinates: null,
+      confidence: 1.0,
+    });
+    // El contador se actualiza automáticamente vía WebSocket cuando hay un parpadeo
   };
-
-  // Efecto para obtener el contador periódicamente
-  useEffect(() => {
-    if (!isPaused && connectionStatus === "connected") {
-      // Obtener contador inicial
-      obtenerContadorParpadeos()
-        .then((response) => {
-          setBlinkCount(response.blink_count);
-        })
-        .catch((error) => {
-          console.error("Error al obtener contador inicial:", error);
-        });
-
-      // Actualizar contador cada 2 segundos
-      countIntervalRef.current = setInterval(async () => {
-        try {
-          setIsLoadingCount(true);
-          const response = await obtenerContadorParpadeos();
-          setBlinkCount(response.blink_count);
-        } catch (error) {
-          console.error("Error al actualizar contador:", error);
-        } finally {
-          setIsLoadingCount(false);
-        }
-      }, 2000);
-    } else {
-      // Limpiar intervalo si está pausado o desconectado
-      if (countIntervalRef.current) {
-        clearInterval(countIntervalRef.current);
-        countIntervalRef.current = null;
-      }
-    }
-
-    return () => {
-      if (countIntervalRef.current) {
-        clearInterval(countIntervalRef.current);
-        countIntervalRef.current = null;
-      }
-    };
-  }, [isPaused, connectionStatus]);
 
   const togglePause = () => {
     setIsPaused((prev) => !prev);
@@ -89,13 +46,12 @@ export default function ParpadeoPage() {
 
   const resetBlinkCount = async () => {
     try {
-      setIsLoadingCount(true);
-      const response = await reiniciarContadorParpadeos();
-      setBlinkCount(response.blink_count);
+      await reiniciarContadorParpadeos();
+      // El WebSocket actualizará automáticamente el contador
+      // Pero refrescamos para asegurar sincronización inmediata
+      refreshBlinkCount();
     } catch (error) {
       console.error("Error al reiniciar contador:", error);
-    } finally {
-      setIsLoadingCount(false);
     }
   };
 
@@ -106,7 +62,7 @@ export default function ParpadeoPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-black dark:text-white mb-2">
             Detección de Parpadeos
           </h1>
-          
+
           {isLoading && (
             <p className="text-base sm:text-lg text-zinc-600 dark:text-zinc-400">
               Cargando cámara...
@@ -235,4 +191,3 @@ export default function ParpadeoPage() {
     </div>
   );
 }
-
