@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     face_detection_min_confidence: float = 0.5
     
     # Configuración de detección de parpadeo
-    ear_threshold: float = 0.2  # Umbral EAR para detectar parpadeo (Eye Aspect Ratio)
+    ear_threshold: float = 1.7  # Umbral EAR para detectar si esta viendo a la pantalla
     
     if PYDANTIC_V2:
         model_config = SettingsConfigDict(
