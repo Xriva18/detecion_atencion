@@ -21,7 +21,7 @@ export default function Home() {
               href="/parpadeo"
               className="px-8 py-4 border-2 border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 text-black dark:text-white font-semibold text-lg transition-colors shadow-md hover:shadow-lg min-w-[200px] text-center"
             >
-              Parpadeo
+              Mirada a la pantalla
             </Link>
           </div>
         </div>
