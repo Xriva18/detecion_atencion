@@ -29,7 +29,7 @@ export async function enviarFrameAlBackend(
     );
 
     // Imprimir respuesta de la API en consola
-    console.log("Respuesta de la API:", response.data);
+    //console.log("Respuesta de la API:", response.data);
 
     return response.data;
   } catch (error) {

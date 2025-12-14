@@ -29,6 +29,7 @@ export async function enviarFrameParaParpadeo(
       requestBody
     );
 
+    console.log("Respuesta de la API de parpadeos:", response.data);
     return response.data;
   } catch (error) {
     throw handleApiError(error);
@@ -44,6 +45,23 @@ export async function obtenerContadorParpadeos(): Promise<BlinkCountResponse> {
   try {
     const response = await httpClient.get<BlinkCountResponse>(
       "/detect/blink/count"
+    );
+
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+}
+
+/**
+ * Reinicia el contador de parpadeos en el servidor
+ * @returns Promise con el contador de parpadeos (0 después del reset)
+ * @throws ApiError si la petición falla
+ */
+export async function reiniciarContadorParpadeos(): Promise<BlinkCountResponse> {
+  try {
+    const response = await httpClient.post<BlinkCountResponse>(
+      "/detect/blink/reset"
     );
 
     return response.data;

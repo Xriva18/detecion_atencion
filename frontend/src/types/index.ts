@@ -18,3 +18,12 @@ export interface BlinkCounterProps {
   count: number;
 }
 
+export interface VideoCanvasBlinkProps {
+  stream: MediaStream | null;
+  width?: number;
+  height?: number;
+  isPaused?: boolean;
+  onFrameSent?: (response: import("@/types/detection").BlinkDetectionResponse) => void;
+  onFrameError?: (error: Error) => void;
+}
+

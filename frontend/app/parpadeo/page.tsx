@@ -1,59 +1,102 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import VideoCanvas from "@/components/Camera/VideoCanvas";
+import { useState, useEffect, useRef } from "react";
+import VideoCanvasBlink from "@/components/Camera/VideoCanvasBlink";
 import ConnectionStatusIndicator from "@/components/ConnectionStatusIndicator";
 import BlinkCounter from "@/components/Parapadeo/BlinkCounter";
 import { useCamera } from "@/hooks/useCamera";
 import { useConnectionStatus } from "@/hooks/useConnectionStatus";
 import { useSaludo } from "@/hooks/useSaludo";
-import { useFaceDetection } from "@/hooks/useFaceDetection";
+import {
+  obtenerContadorParpadeos,
+  reiniciarContadorParpadeos,
+} from "@/services/blinkService";
+import type { BlinkDetectionResponse } from "@/types/detection";
 
 export default function ParpadeoPage() {
   const { stream, isLoading, error } = useCamera();
 
   const [isPaused, setIsPaused] = useState(false);
   const [blinkCount, setBlinkCount] = useState(0);
+  const [isLoadingCount, setIsLoadingCount] = useState(false);
+  const countIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { saludo, saludoError, saludoLoading } = useSaludo();
   const { connectionStatus, handleFrameSent, handleFrameError } =
     useConnectionStatus();
-  const {
-    detectionState,
-    updateDetection,
-    startFpsCalculation,
-    stopFpsCalculation,
-  } = useFaceDetection();
 
-  // Iniciar cálculo de FPS cuando el stream esté disponible
+  // Handler para manejar la detección de parpadeos
+  const handleBlinkDetection = async (
+    response: BlinkDetectionResponse
+  ) => {
+    // Actualizar estado de conexión
+    handleFrameSent(response as any);
+    
+    // Si se detectó un parpadeo, actualizar el contador
+    if (response.blinking) {
+      try {
+        // Obtener el contador actualizado del servidor
+        const countResponse = await obtenerContadorParpadeos();
+        setBlinkCount(countResponse.blink_count);
+      } catch (error) {
+        console.error("Error al obtener contador de parpadeos:", error);
+      }
+    }
+  };
+
+  // Efecto para obtener el contador periódicamente
   useEffect(() => {
-    if (stream && !isPaused) {
-      startFpsCalculation();
+    if (!isPaused && connectionStatus === "connected") {
+      // Obtener contador inicial
+      obtenerContadorParpadeos()
+        .then((response) => {
+          setBlinkCount(response.blink_count);
+        })
+        .catch((error) => {
+          console.error("Error al obtener contador inicial:", error);
+        });
+
+      // Actualizar contador cada 2 segundos
+      countIntervalRef.current = setInterval(async () => {
+        try {
+          setIsLoadingCount(true);
+          const response = await obtenerContadorParpadeos();
+          setBlinkCount(response.blink_count);
+        } catch (error) {
+          console.error("Error al actualizar contador:", error);
+        } finally {
+          setIsLoadingCount(false);
+        }
+      }, 2000);
     } else {
-      stopFpsCalculation();
+      // Limpiar intervalo si está pausado o desconectado
+      if (countIntervalRef.current) {
+        clearInterval(countIntervalRef.current);
+        countIntervalRef.current = null;
+      }
     }
 
     return () => {
-      stopFpsCalculation();
+      if (countIntervalRef.current) {
+        clearInterval(countIntervalRef.current);
+        countIntervalRef.current = null;
+      }
     };
-  }, [stream, isPaused, startFpsCalculation, stopFpsCalculation]);
-
-  // Handler combinado para actualizar detección y estado de conexión
-  const handleFrameSentWithDetection = (
-    response: import("@/types/detection").FaceDetectionResponse
-  ) => {
-    updateDetection(response);
-    handleFrameSent(response);
-    
-    // Aquí puedes agregar lógica para detectar parpadeos
-    // basándote en la respuesta del servidor si incluye información de parpadeos
-  };
+  }, [isPaused, connectionStatus]);
 
   const togglePause = () => {
     setIsPaused((prev) => !prev);
   };
 
-  const resetBlinkCount = () => {
-    setBlinkCount(0);
+  const resetBlinkCount = async () => {
+    try {
+      setIsLoadingCount(true);
+      const response = await reiniciarContadorParpadeos();
+      setBlinkCount(response.blink_count);
+    } catch (error) {
+      console.error("Error al reiniciar contador:", error);
+    } finally {
+      setIsLoadingCount(false);
+    }
   };
 
   return (
@@ -87,20 +130,13 @@ export default function ParpadeoPage() {
               <div className="flex flex-col items-center gap-3 sm:gap-4 w-full md:w-auto md:flex-shrink-0">
                 <ConnectionStatusIndicator status={connectionStatus} />
                 <div className="w-full max-w-full md:max-w-none flex justify-center">
-                  <VideoCanvas
+                  <VideoCanvasBlink
                     stream={stream}
                     width={640}
                     height={480}
                     isPaused={isPaused}
-                    onFrameSent={handleFrameSentWithDetection}
+                    onFrameSent={handleBlinkDetection}
                     onFrameError={handleFrameError}
-                    faceCoordinates={
-                      !isPaused &&
-                      connectionStatus === "connected" &&
-                      detectionState.detected
-                        ? detectionState.coordinates
-                        : null
-                    }
                   />
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
@@ -148,48 +184,12 @@ export default function ParpadeoPage() {
                   <div className="flex justify-center">
                     <BlinkCounter count={blinkCount} />
                   </div>
+                  {isLoadingCount && (
+                    <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-2">
+                      Actualizando...
+                    </p>
+                  )}
                 </div>
-
-                {/* Información de detección y FPS - Solo mostrar si está activo y conectado */}
-                {!isPaused && connectionStatus === "connected" && (
-                  <div className="w-full p-3 sm:p-4 border-2 border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900">
-                    <div className="flex flex-col gap-2 sm:gap-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm sm:text-lg font-medium text-black dark:text-white">
-                          Rostro detectado:
-                        </span>
-                        <span
-                          className={`text-sm sm:text-lg font-semibold ${
-                            detectionState.detected
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-red-600 dark:text-red-400"
-                          }`}
-                        >
-                          {detectionState.detected ? "SÍ" : "NO"}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm sm:text-lg font-medium text-black dark:text-white">
-                          FPS:
-                        </span>
-                        <span className="text-sm sm:text-lg font-semibold text-blue-600 dark:text-blue-400">
-                          {detectionState.fps}
-                        </span>
-                      </div>
-                      {detectionState.detected &&
-                        detectionState.confidence > 0 && (
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                              Confianza:
-                            </span>
-                            <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
-                              {(detectionState.confidence * 100).toFixed(1)}%
-                            </span>
-                          </div>
-                        )}
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Columna única para móviles: Mensaje del servidor y detalles */}
@@ -221,48 +221,12 @@ export default function ParpadeoPage() {
                   <div className="flex justify-center">
                     <BlinkCounter count={blinkCount} />
                   </div>
+                  {isLoadingCount && (
+                    <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-2">
+                      Actualizando...
+                    </p>
+                  )}
                 </div>
-
-                {/* Información de detección y FPS - Solo mostrar si está activo y conectado */}
-                {!isPaused && connectionStatus === "connected" && (
-                  <div className="w-full p-3 sm:p-4 border-2 border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900">
-                    <div className="flex flex-col gap-2 sm:gap-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm sm:text-lg font-medium text-black dark:text-white">
-                          Rostro detectado:
-                        </span>
-                        <span
-                          className={`text-sm sm:text-lg font-semibold ${
-                            detectionState.detected
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-red-600 dark:text-red-400"
-                          }`}
-                        >
-                          {detectionState.detected ? "SÍ" : "NO"}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm sm:text-lg font-medium text-black dark:text-white">
-                          FPS:
-                        </span>
-                        <span className="text-sm sm:text-lg font-semibold text-blue-600 dark:text-blue-400">
-                          {detectionState.fps}
-                        </span>
-                      </div>
-                      {detectionState.detected &&
-                        detectionState.confidence > 0 && (
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                              Confianza:
-                            </span>
-                            <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
-                              {(detectionState.confidence * 100).toFixed(1)}%
-                            </span>
-                          </div>
-                        )}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )}
