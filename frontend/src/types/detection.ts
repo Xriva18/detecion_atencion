@@ -24,3 +24,25 @@ export interface FaceDetectionRequest {
   image: string; // Imagen en Base64
 }
 
+/**
+ * Respuesta del endpoint de detección de parpadeos
+ */
+export interface BlinkDetectionResponse {
+  blinking: boolean;
+  left_ear: number;
+  right_ear: number;
+}
+
+/**
+ * Request body para el endpoint de detección de parpadeos
+ */
+export interface BlinkDetectionRequest {
+  image: string; // Imagen en Base64
+}
+
+/**
+ * Respuesta del endpoint de contador de parpadeos
+ */
+export interface BlinkCountResponse {
+  blink_count: number;
+}
