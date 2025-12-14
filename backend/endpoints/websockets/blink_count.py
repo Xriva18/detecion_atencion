@@ -5,6 +5,7 @@ import asyncio
 from fastapi import WebSocket, WebSocketDisconnect
 from fastapi.routing import APIRouter
 
+from core.config import settings
 from endpoints.websockets.connection_manager import ConnectionManager
 from services.blink_counter import get_blink_count
 
@@ -35,8 +36,8 @@ async def websocket_blink_count(websocket: WebSocket):
         while True:
             # Esperar mensajes del cliente o timeout para verificar cambios
             try:
-                # Timeout de 0.5 segundos para verificar actualizaciones más frecuentemente
-                data = await asyncio.wait_for(websocket.receive_text(), timeout=0.5)
+                # Timeout configurable para verificar actualizaciones periódicamente
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=settings.websocket_check_interval)
                 # Si el cliente envía un mensaje, mantener la conexión viva
             except asyncio.TimeoutError:
                 # Verificar si el contador ha cambiado

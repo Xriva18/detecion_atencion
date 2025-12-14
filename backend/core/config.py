@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # Configuración de detección de parpadeo
     ear_threshold: float = 1.7  # Umbral EAR para detectar si esta viendo a la pantalla
     
+    # Configuración de WebSocket
+    websocket_check_interval: float = 0.5  # Intervalo en segundos para verificar cambios en WebSocket (blink_count)
+    
     if PYDANTIC_V2:
         model_config = SettingsConfigDict(
             env_file=".env",
