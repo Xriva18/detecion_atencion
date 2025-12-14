@@ -39,7 +39,7 @@ export default function ParpadeoPage() {
   );
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Efecto para monitorear cambios en el conteo durante 10 segundos
+  // Efecto para monitorear cambios en el conteo durante 7 segundos
   useEffect(() => {
     if (isPaused || connectionStatus !== "connected") {
       setIsWatchingScreen(null);
@@ -65,15 +65,15 @@ export default function ParpadeoPage() {
       });
     }
 
-    // Limpiar entradas más antiguas de 10 segundos
-    const tenSecondsAgo = currentTime - 10000;
+    // Limpiar entradas más antiguas de 7 segundos
+    const sevenSecondsAgo = currentTime - 7000;
     countHistoryRef.current = countHistoryRef.current.filter(
-      (entry) => entry.timestamp > tenSecondsAgo
+      (entry) => entry.timestamp > sevenSecondsAgo
     );
 
-    // Si tenemos suficientes datos (al menos 2 entradas en la ventana de 10 segundos)
+    // Si tenemos suficientes datos (al menos 2 entradas en la ventana de 7 segundos)
     if (countHistoryRef.current.length >= 2) {
-      // Contar cuántas veces cambia el conteo en la ventana de 10 segundos
+      // Contar cuántas veces cambia el conteo en la ventana de 7 segundos
       let changeCount = 0;
       for (let i = 1; i < countHistoryRef.current.length; i++) {
         if (
@@ -95,9 +95,9 @@ export default function ParpadeoPage() {
     if (!intervalRef.current) {
       intervalRef.current = setInterval(() => {
         const now = Date.now();
-        const tenSecondsAgo = now - 10000;
+        const sevenSecondsAgo = now - 7000;
         countHistoryRef.current = countHistoryRef.current.filter(
-          (entry) => entry.timestamp > tenSecondsAgo
+          (entry) => entry.timestamp > sevenSecondsAgo
         );
 
         if (countHistoryRef.current.length >= 2) {
@@ -244,7 +244,7 @@ export default function ParpadeoPage() {
                   )}
                   <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-700">
                     <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Parámetro de evaluación (últimos 10 seg):
+                      Parámetro de evaluación (últimos 7 seg):
                     </p>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-black dark:text-white">
@@ -327,7 +327,7 @@ export default function ParpadeoPage() {
                   )}
                   <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-700">
                     <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Parámetro de evaluación (últimos 10 seg):
+                      Parámetro de evaluación (últimos 7 seg):
                     </p>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-black dark:text-white">
