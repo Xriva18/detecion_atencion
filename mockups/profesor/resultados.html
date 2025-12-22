@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html class="light" lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>EduXriva - Reportes de Resultados</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#135bec",
+              "background-light": "#f6f6f8",
+              "background-dark": "#101622",
+              "surface-light": "#ffffff",
+              "surface-dark": "#1a2332",
+            },
+            fontFamily: {
+              display: ["Lexend", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.25rem",
+              lg: "0.5rem",
+              xl: "0.75rem",
+              full: "9999px",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: "Lexend", sans-serif;
+      }
+      .material-symbols-outlined {
+        font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-background-light dark:bg-background-dark text-[#111318] dark:text-white transition-colors duration-200"
+  >
+    <div class="flex h-screen w-full overflow-hidden">
+      <!-- Sidebar -->
+      <aside
+        class="w-64 flex flex-col justify-between bg-white dark:bg-[#1a2332] border-r border-[#e5e7eb] dark:border-[#2a3441] transition-colors duration-200 hidden md:flex z-20"
+      >
+        <div class="flex flex-col gap-4 p-4 h-full">
+          <!-- Logo & Brand -->
+          <div class="flex items-center gap-3 px-2 py-3">
+            <div
+              class="bg-primary aspect-square rounded-lg size-10 flex items-center justify-center text-white"
+            >
+              <span class="material-symbols-outlined !text-[28px]">school</span>
+            </div>
+            <div class="flex flex-col">
+              <h1
+                class="text-[#111318] dark:text-white text-lg font-bold leading-tight"
+              >
+                EduXriva
+              </h1>
+              <p class="text-[#616f89] dark:text-[#9ca3af] text-xs font-normal">
+                Panel Profesor
+              </p>
+            </div>
+          </div>
+          <!-- Navigation -->
+          <nav class="flex flex-col gap-2 mt-4 flex-1">
+            <a
+              class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#616f89] dark:text-[#9ca3af] hover:bg-gray-100 dark:hover:bg-[#2a3441] hover:text-[#111318] dark:hover:text-white transition-all group"
+              href="dashbaord.html"
+            >
+              <span
+                class="material-symbols-outlined group-hover:scale-105 transition-transform"
+                >dashboard</span
+              >
+              <p class="text-sm font-medium">Dashboard</p>
+            </a>
+            <a
+              class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#616f89] dark:text-[#9ca3af] hover:bg-gray-100 dark:hover:bg-[#2a3441] hover:text-[#111318] dark:hover:text-white transition-all group"
+              href="gestin_clases.html"
+            >
+              <span
+                class="material-symbols-outlined group-hover:scale-105 transition-transform"
+                >class</span
+              >
+              <p class="text-sm font-medium">Gestión de Clases</p>
+            </a>
+            <a
+              class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#616f89] dark:text-[#9ca3af] hover:bg-gray-100 dark:hover:bg-[#2a3441] hover:text-[#111318] dark:hover:text-white transition-all group"
+              href="subir_video.html"
+            >
+              <span
+                class="material-symbols-outlined group-hover:scale-105 transition-transform"
+                >video_library</span
+              >
+              <p class="text-sm font-medium">Videos y Evaluaciones</p>
+            </a>
+            <a
+              class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#616f89] dark:text-[#9ca3af] hover:bg-gray-100 dark:hover:bg-[#2a3441] hover:text-[#111318] dark:hover:text-white transition-all group"
+              href="videos.html"
+            >
+              <span
+                class="material-symbols-outlined group-hover:scale-105 transition-transform"
+                >playlist_play</span
+              >
+              <p class="text-sm font-medium">Lista de Videos</p>
+            </a>
+            <a
+              class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 text-primary group"
+              href="resultados.html"
+            >
+              <span
+                class="material-symbols-outlined group-hover:scale-105 transition-transform"
+                >analytics</span
+              >
+              <p class="text-sm font-medium">Reportes de Resultados</p>
+            </a>
+          </nav>
+          <!-- Footer / Logout -->
+          <div class="flex flex-col gap-1 mt-auto">
+            <a
+              class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+              href="../login/login.html"
+            >
+              <span class="material-symbols-outlined">logout</span>
+              <p class="text-sm font-medium">Cerrar Sesión</p>
+            </a>
+          </div>
+        </div>
+      </aside>
+      <!-- Main Content -->
+      <main
+        class="flex-1 flex flex-col h-full overflow-y-auto relative scroll-smooth"
+      >
+        <!-- Top Header -->
+        <header
+          class="sticky top-0 z-10 w-full bg-white/80 dark:bg-[#1a2332]/90 backdrop-blur-md border-b border-[#e5e7eb] dark:border-[#2a3441] px-6 py-3 flex items-center justify-between"
+        >
+          <div class="flex flex-col">
+            <h2 class="text-xl font-bold text-[#111318] dark:text-white">
+              Reportes de Resultados
+            </h2>
+            <p class="text-xs text-[#616f89] dark:text-[#9ca3af]">
+              Visualización de calificaciones y resúmenes de atención
+            </p>
+          </div>
+          <div class="flex items-center gap-4">
+            <div
+              class="flex items-center gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#2a3441] p-1.5 rounded-lg transition-colors"
+            >
+              <div
+                class="size-8 rounded-full bg-cover bg-center border border-gray-200 dark:border-gray-600"
+                data-alt="Professor profile picture"
+                style="
+                  background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDSYhGeK6F4Q9CmKQULW3C2B0ZxPazRU_9RQHHy7wfZXerljW2Pw_Kr85RT-Dc9P9K80VeKr-FWtnDzF9h_OOz-uvkA36Z7ChbhdGQml-1E64HVlswLJrTozKSCd7pQYKpkKNBpVZfgo-ivQntccoU7lx5f5DyuR0XRhX3EgPxQnWOuH0M_t-APVGXXVSUOSjaZSRrAjzfhVuDzdYhQv2m4PgtNk0KJ0KcjVWhvWzeabkEyqe94usNJ-GUvfwApIKU1NvRp0laFDYA');
+                "
+              ></div>
+            </div>
+          </div>
+        </header>
+        <div class="p-6 md:p-8 max-w-7xl mx-auto w-full flex flex-col gap-8">
+          <!-- Filters -->
+          <div
+            class="bg-white dark:bg-[#1a2332] rounded-xl border border-[#e5e7eb] dark:border-[#2a3441] p-5 shadow-sm"
+          >
+            <div class="flex items-center gap-2 mb-4">
+              <span class="material-symbols-outlined text-primary"
+                >filter_alt</span
+              >
+              <h3 class="font-bold text-lg text-[#111318] dark:text-white">
+                Filtros
+              </h3>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <label
+                  class="text-xs font-bold uppercase tracking-wider text-[#616f89] dark:text-[#9ca3af]"
+                  >Clase / Curso</label
+                >
+                <div class="relative">
+                  <select
+                    class="w-full bg-white dark:bg-[#1a2332] border border-[#dbdfe6] dark:border-[#2a3441] rounded-lg py-2.5 pl-3 pr-10 text-sm focus:ring-primary focus:border-primary appearance-none cursor-pointer text-[#111318] dark:text-white"
+                  >
+                    <option>Todas las clases</option>
+                    <option>Matemáticas Avanzadas 101</option>
+                    <option>Álgebra Lineal</option>
+                    <option>Cálculo Diferencial</option>
+                  </select>
+                  <span
+                    class="material-symbols-outlined absolute right-3 top-2.5 pointer-events-none text-[#616f89] text-[20px]"
+                    >expand_more</span
+                  >
+                </div>
+              </div>
+              <div class="space-y-2">
+                <label
+                  class="text-xs font-bold uppercase tracking-wider text-[#616f89] dark:text-[#9ca3af]"
+                  >Buscar Estudiante</label
+                >
+                <div class="relative">
+                  <input
+                    class="w-full bg-white dark:bg-[#1a2332] border border-[#dbdfe6] dark:border-[#2a3441] rounded-lg py-2.5 pl-9 pr-3 text-sm focus:ring-primary focus:border-primary placeholder:text-[#616f89] dark:placeholder:text-[#9ca3af] text-[#111318] dark:text-white"
+                    placeholder="Buscar por nombre..."
+                    type="text"
+                  />
+                  <span
+                    class="material-symbols-outlined absolute left-3 top-2.5 pointer-events-none text-[#616f89] text-[18px]"
+                    >search</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPI Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div
+              class="bg-white dark:bg-[#1a2332] rounded-xl p-5 border border-[#e5e7eb] dark:border-[#2a3441] shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group"
+            >
+              <div
+                class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"
+              >
+                <span class="material-symbols-outlined text-6xl text-primary"
+                  >school</span
+                >
+              </div>
+              <p
+                class="text-sm font-medium text-[#616f89] dark:text-[#9ca3af] z-10"
+              >
+                Promedio General
+              </p>
+              <div>
+                <p
+                  class="text-3xl font-black text-[#111318] dark:text-white tracking-tight"
+                >
+                  8.5<span class="text-lg text-[#616f89] font-medium">/10</span>
+                </p>
+                <div
+                  class="flex items-center gap-1 mt-1 text-green-600 text-xs font-bold"
+                >
+                  <span class="material-symbols-outlined text-sm"
+                    >trending_up</span
+                  >
+                  <span>+0.2% vs mes anterior</span>
+                </div>
+              </div>
+            </div>
+            <div
+              class="bg-white dark:bg-[#1a2332] rounded-xl p-5 border border-[#e5e7eb] dark:border-[#2a3441] shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group"
+            >
+              <div
+                class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"
+              >
+                <span class="material-symbols-outlined text-6xl text-green-500"
+                  >check_circle</span
+                >
+              </div>
+              <p
+                class="text-sm font-medium text-[#616f89] dark:text-[#9ca3af] z-10"
+              >
+                Tasa de Aprobación
+              </p>
+              <div>
+                <p
+                  class="text-3xl font-black text-[#111318] dark:text-white tracking-tight"
+                >
+                  92%
+                </p>
+                <div
+                  class="flex items-center gap-1 mt-1 text-green-600 text-xs font-bold"
+                >
+                  <span class="material-symbols-outlined text-sm"
+                    >trending_up</span
+                  >
+                  <span>+1.5% record histórico</span>
+                </div>
+              </div>
+            </div>
+            <div
+              class="bg-white dark:bg-[#1a2332] rounded-xl p-5 border border-[#e5e7eb] dark:border-[#2a3441] shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group"
+            >
+              <div
+                class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"
+              >
+                <span class="material-symbols-outlined text-6xl text-red-500"
+                  >warning</span
+                >
+              </div>
+              <p
+                class="text-sm font-medium text-[#616f89] dark:text-[#9ca3af] z-10"
+              >
+                Estudiantes en Riesgo
+              </p>
+              <div>
+                <p
+                  class="text-3xl font-black text-[#111318] dark:text-white tracking-tight"
+                >
+                  3
+                </p>
+                <div
+                  class="flex items-center gap-1 mt-1 text-orange-600 text-xs font-bold"
+                >
+                  <span class="material-symbols-outlined text-sm"
+                    >priority_high</span
+                  >
+                  <span>Requieren atención</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Resumen de Atención Grupal -->
+          <div
+            class="bg-white dark:bg-[#1a2332] rounded-xl border border-[#e5e7eb] dark:border-[#2a3441] p-6 shadow-sm"
+          >
+            <h3 class="text-xl font-bold text-[#111318] dark:text-white mb-4">
+              Resumen de Atención Grupal
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="p-4 bg-gray-50 dark:bg-[#2a3441] rounded-lg">
+                <p class="text-sm text-[#616f89] dark:text-[#9ca3af] mb-2">
+                  Tiempo Promedio de Visualización
+                </p>
+                <p class="text-2xl font-bold text-[#111318] dark:text-white">
+                  85%
+                </p>
+                <p class="text-xs text-[#616f89] dark:text-[#9ca3af] mt-1">
+                  Del total del video
+                </p>
+              </div>
+              <div class="p-4 bg-gray-50 dark:bg-[#2a3441] rounded-lg">
+                <p class="text-sm text-[#616f89] dark:text-[#9ca3af] mb-2">
+                  Participación en Preguntas
+                </p>
+                <p class="text-2xl font-bold text-[#111318] dark:text-white">
+                  78%
+                </p>
+                <p class="text-xs text-[#616f89] dark:text-[#9ca3af] mt-1">
+                  De estudiantes activos
+                </p>
+              </div>
+              <div class="p-4 bg-gray-50 dark:bg-[#2a3441] rounded-lg">
+                <p class="text-sm text-[#616f89] dark:text-[#9ca3af] mb-2">
+                  Tasa de Finalización
+                </p>
+                <p class="text-2xl font-bold text-[#111318] dark:text-white">
+                  92%
+                </p>
+                <p class="text-xs text-[#616f89] dark:text-[#9ca3af] mt-1">
+                  Completaron el video
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabla de Estudiantes -->
+          <div
+            class="bg-white dark:bg-[#1a2332] rounded-xl border border-[#e5e7eb] dark:border-[#2a3441] shadow-sm overflow-hidden"
+          >
+            <div
+              class="p-5 border-b border-[#e5e7eb] dark:border-[#2a3441] flex flex-wrap gap-4 justify-between items-center"
+            >
+              <h3 class="font-bold text-lg text-[#111318] dark:text-white">
+                Detalle de Estudiantes
+              </h3>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr
+                    class="bg-gray-50 dark:bg-[#2a3441] border-b border-[#e5e7eb] dark:border-[#2a3441] text-xs uppercase tracking-wider text-[#616f89] dark:text-[#9ca3af] font-semibold"
+                  >
+                    <th class="px-6 py-4">Estudiante</th>
+                    <th class="px-6 py-4">ID</th>
+                    <th class="px-6 py-4 text-center">Promedio</th>
+                    <th class="px-6 py-4 text-center">Atención</th>
+                    <th class="px-6 py-4">Estado</th>
+                    <th class="px-6 py-4 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-[#e5e7eb] dark:divide-[#2a3441]">
+                  <!-- Row 1 -->
+                  <tr
+                    class="hover:bg-gray-50 dark:hover:bg-[#2a3441]/30 transition-colors group"
+                  >
+                    <td class="px-6 py-4">
+                      <div class="flex items-center gap-3">
+                        <div
+                          class="size-9 rounded-full bg-cover bg-center"
+                          data-alt="Student Portrait 1"
+                          style="
+                            background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBga0yAmWd4V2BgygJeHtlBizyDIsZjFDYFc1eAHMjvXCcfrQ53uoRXwrkJUMQHtFhnxI9kVn-ezRrTGucSl4PSF0iXDmm-xIBmzK4Mcqs6NvVA17-5OduMUljwknBzaykofSKU72UAgcQrux3X_MiJlUK8gvoB2L30SxAVBWDUjCmIkoycIHPFljGhf1ZLGBsQEhS8J3aV5b81c0s1TMBgKPEJzONf5wrupc4pCd3iV807cX9GiYjhwZlCRg-XCDgoDkaUj3I55UU');
+                          "
+                        ></div>
+                        <div>
+                          <p
+                            class="text-sm font-bold text-[#111318] dark:text-white"
+                          >
+                            Ana López
+                          </p>
+                          <p class="text-xs text-[#616f89] dark:text-[#9ca3af]">
+                            analopez@edu.com
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td
+                      class="px-6 py-4 text-sm text-[#616f89] dark:text-[#9ca3af] font-mono"
+                    >
+                      #STD-8832
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                      <span
+                        class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                      >
+                        9.8
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                      <div
+                        class="w-full max-w-[80px] bg-gray-200 dark:bg-gray-700 h-1.5 rounded-full mx-auto overflow-hidden"
+                      >
+                        <div
+                          class="bg-green-500 h-full rounded-full"
+                          style="width: 95%"
+                        ></div>
+                      </div>
+                      <span
+                        class="text-[10px] text-[#616f89] dark:text-[#9ca3af] mt-1 block"
+                        >95%</span
+                      >
+                    </td>
+                    <td class="px-6 py-4">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium text-[#616f89] dark:text-[#9ca3af] border border-[#e5e7eb] dark:border-[#2a3441] bg-white dark:bg-transparent"
+                      >
+                        <div class="size-1.5 rounded-full bg-green-500"></div>
+                        Excelente
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                      <button
+                        onclick="openModal('studentDetailModal')"
+                        class="text-[#616f89] dark:text-[#9ca3af] hover:text-primary transition-colors p-1"
+                      >
+                        <span class="material-symbols-outlined text-[20px]"
+                          >visibility</span
+                        >
+                      </button>
+                    </td>
+                  </tr>
+                  <!-- Row 2 -->
+                  <tr
+                    class="hover:bg-gray-50 dark:hover:bg-[#2a3441]/30 transition-colors group"
+                  >
+                    <td class="px-6 py-4">
+                      <div class="flex items-center gap-3">
+                        <div
+                          class="size-9 rounded-full bg-cover bg-center"
+                          data-alt="Student Portrait 2"
+                          style="
+                            background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBw6mXFeAn-9Td7xk_fD5P-F-dJJ45BKkYtXLMdlTKnYVL38JWSuKtAOMH6kvPJVpx0J2y-6yWMiBPE2PSMezaunEZ9J61KgEsPXvVvp33MBFlIwnzRG3rDatHQL3Xi1C1Ln2w1dH7ivFKUWYjn3bwamJvutrTHV3TlowbN68n4fERP7kSvgJmhjZkIb0CRDOrX_kvMQ3aTeeNmo0Kzc6NR-71pByvci2uTMZDUFjW0zRMeNlpWatWoboloHZakiZEyfIMRCKtytoY');
+                          "
+                        ></div>
+                        <div>
+                          <p
+                            class="text-sm font-bold text-[#111318] dark:text-white"
+                          >
+                            Carlos Ruiz
+                          </p>
+                          <p class="text-xs text-[#616f89] dark:text-[#9ca3af]">
+                            cruiz@edu.com
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td
+                      class="px-6 py-4 text-sm text-[#616f89] dark:text-[#9ca3af] font-mono"
+                    >
+                      #STD-9921
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                      <span
+                        class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                      >
+                        8.4
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                      <div
+                        class="w-full max-w-[80px] bg-gray-200 dark:bg-gray-700 h-1.5 rounded-full mx-auto overflow-hidden"
+                      >
+                        <div
+                          class="bg-blue-500 h-full rounded-full"
+                          style="width: 75%"
+                        ></div>
+                      </div>
+                      <span
+                        class="text-[10px] text-[#616f89] dark:text-[#9ca3af] mt-1 block"
+                        >75%</span
+                      >
+                    </td>
+                    <td class="px-6 py-4">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium text-[#616f89] dark:text-[#9ca3af] border border-[#e5e7eb] dark:border-[#2a3441] bg-white dark:bg-transparent"
+                      >
+                        <div class="size-1.5 rounded-full bg-green-500"></div>
+                        Aprobado
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                      <button
+                        onclick="openModal('studentDetailModal')"
+                        class="text-[#616f89] dark:text-[#9ca3af] hover:text-primary transition-colors p-1"
+                      >
+                        <span class="material-symbols-outlined text-[20px]"
+                          >visibility</span
+                        >
+                      </button>
+                    </td>
+                  </tr>
+                  <!-- Row 3 (At Risk) -->
+                  <tr
+                    class="bg-red-50/50 dark:bg-red-900/5 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors group"
+                  >
+                    <td class="px-6 py-4">
+                      <div class="flex items-center gap-3">
+                        <div
+                          class="size-9 rounded-full bg-cover bg-center"
+                          data-alt="Student Portrait 3"
+                          style="
+                            background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDWIEm5yk4TNGWKfwxOvIUvCwtxuNdQHPvBuK0ri5li36d0H4PkMXIM64jDTy63fyicb9wntkOUdKmhZzrOLmYCiipAeYGridG2X37rZeGKq-BirJ-KuFlsdzNOnn4XYP2eBmCux9ND0FeRFaW_ycTBUWt5ru0TgLiV8AZGoDvGOoQX-3Bwvkm6btN5quOjdrtiTBbpbQRWeMEJICmaFNcpuGaNsa-b3cYXTt02Vze2EQN84aRTe4fhBXJCqJu0bwVplcwK3CEzNyQ');
+                          "
+                        ></div>
+                        <div>
+                          <p
+                            class="text-sm font-bold text-[#111318] dark:text-white"
+                          >
+                            Sofía Méndez
+                          </p>
+                          <p class="text-xs text-[#616f89] dark:text-[#9ca3af]">
+                            sofiam@edu.com
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td
+                      class="px-6 py-4 text-sm text-[#616f89] dark:text-[#9ca3af] font-mono"
+                    >
+                      #STD-1102
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                      <span
+                        class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                      >
+                        5.2
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                      <div
+                        class="w-full max-w-[80px] bg-gray-200 dark:bg-gray-700 h-1.5 rounded-full mx-auto overflow-hidden"
+                      >
+                        <div
+                          class="bg-red-500 h-full rounded-full"
+                          style="width: 45%"
+                        ></div>
+                      </div>
+                      <span
+                        class="text-[10px] text-[#616f89] dark:text-[#9ca3af] mt-1 block"
+                        >45%</span
+                      >
+                    </td>
+                    <td class="px-6 py-4">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-bold text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-900/20"
+                      >
+                        <div
+                          class="size-1.5 rounded-full bg-red-500 animate-pulse"
+                        ></div>
+                        En Riesgo
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                      <button
+                        onclick="openModal('studentDetailModal')"
+                        class="text-[#616f89] dark:text-[#9ca3af] hover:text-primary transition-colors p-1"
+                      >
+                        <span class="material-symbols-outlined text-[20px]"
+                          >visibility</span
+                        >
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Modal: Detalle Individual -->
+    <div
+      id="studentDetailModal"
+      class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm"
+    >
+      <div
+        class="bg-white dark:bg-[#1a2332] rounded-xl shadow-2xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+      >
+        <div
+          class="px-6 py-4 border-b border-[#e5e7eb] dark:border-[#2a3441] flex items-center justify-between"
+        >
+          <h2 class="text-xl font-bold text-[#111318] dark:text-white">
+            Resumen Individual - Ana López
+          </h2>
+          <button
+            onclick="closeModal('studentDetailModal')"
+            class="text-[#616f89] hover:text-[#111318] dark:hover:text-white"
+          >
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <div class="p-6 flex flex-col gap-6">
+          <!-- Calificaciones -->
+          <div>
+            <h3 class="text-lg font-bold text-[#111318] dark:text-white mb-4">
+              Calificaciones
+            </h3>
+            <div class="space-y-3">
+              <div
+                class="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#2a3441] rounded-lg"
+              >
+                <span class="text-sm text-[#111318] dark:text-white"
+                  >Parcial Álgebra</span
+                >
+                <span class="text-sm font-bold text-green-600">9.5/10</span>
+              </div>
+              <div
+                class="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#2a3441] rounded-lg"
+              >
+                <span class="text-sm text-[#111318] dark:text-white"
+                  >Lab Química 2</span
+                >
+                <span class="text-sm font-bold text-green-600">10/10</span>
+              </div>
+              <div
+                class="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#2a3441] rounded-lg"
+              >
+                <span class="text-sm text-[#111318] dark:text-white"
+                  >Quiz Python</span
+                >
+                <span class="text-sm font-bold text-blue-600">8.5/10</span>
+              </div>
+            </div>
+          </div>
+          <!-- Resumen de Atención -->
+          <div>
+            <h3 class="text-lg font-bold text-[#111318] dark:text-white mb-4">
+              Resumen de Atención
+            </h3>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="p-4 bg-gray-50 dark:bg-[#2a3441] rounded-lg">
+                <p class="text-sm text-[#616f89] dark:text-[#9ca3af] mb-2">
+                  Tiempo de Visualización
+                </p>
+                <p class="text-2xl font-bold text-[#111318] dark:text-white">
+                  95%
+                </p>
+              </div>
+              <div class="p-4 bg-gray-50 dark:bg-[#2a3441] rounded-lg">
+                <p class="text-sm text-[#616f89] dark:text-[#9ca3af] mb-2">
+                  Preguntas Respondidas
+                </p>
+                <p class="text-2xl font-bold text-[#111318] dark:text-white">
+                  12/15
+                </p>
+              </div>
+            </div>
+          </div>
+          <div
+            class="flex gap-3 justify-end pt-4 border-t border-[#e5e7eb] dark:border-[#2a3441]"
+          >
+            <button
+              type="button"
+              onclick="closeModal('studentDetailModal')"
+              class="px-5 py-2.5 rounded-lg bg-primary hover:bg-blue-700 text-white font-medium transition-colors"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function openModal(modalId) {
+        document.getElementById(modalId).classList.remove("hidden");
+        document.getElementById(modalId).classList.add("flex");
+        document.body.style.overflow = "hidden";
+      }
+
+      function closeModal(modalId) {
+        document.getElementById(modalId).classList.add("hidden");
+        document.getElementById(modalId).classList.remove("flex");
+        document.body.style.overflow = "auto";
+      }
+    </script>
+  </body>
+</html>

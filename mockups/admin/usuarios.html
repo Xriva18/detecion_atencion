@@ -1,0 +1,1476 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>EduXriva - Gestión de Usuarios</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <!-- Material Symbols -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- Theme Configuration -->
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#135bec",
+              "background-light": "#f6f6f8",
+              "background-dark": "#101622",
+              "surface-light": "#ffffff",
+              "surface-dark": "#1a2233",
+            },
+            fontFamily: {
+              display: ["Lexend", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.25rem",
+              lg: "0.5rem",
+              xl: "0.75rem",
+              full: "9999px",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: "Lexend", sans-serif;
+      }
+      /* Custom scrollbar for table if needed */
+      .custom-scrollbar::-webkit-scrollbar {
+        height: 8px;
+        width: 8px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: #f1f1f1;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-background-light dark:bg-background-dark text-[#111318] dark:text-white transition-colors duration-200"
+  >
+    <div class="flex h-screen w-full overflow-hidden">
+      <!-- Sidebar -->
+      <aside
+        class="w-64 flex flex-col justify-between bg-white dark:bg-[#1a2332] border-r border-[#e5e7eb] dark:border-[#2a3441] transition-colors duration-200 hidden md:flex z-20"
+      >
+        <div class="flex flex-col gap-4 p-4 h-full">
+          <!-- Logo & Brand -->
+          <div class="flex items-center gap-3 px-2 py-3">
+            <div
+              class="bg-primary aspect-square rounded-lg size-10 flex items-center justify-center text-white"
+            >
+              <span class="material-symbols-outlined !text-[28px]">school</span>
+            </div>
+            <div class="flex flex-col">
+              <h1
+                class="text-[#111318] dark:text-white text-lg font-bold leading-tight"
+              >
+                EduXriva
+              </h1>
+              <p class="text-[#616f89] dark:text-[#9ca3af] text-xs font-normal">
+                Panel de Control
+              </p>
+            </div>
+          </div>
+          <!-- Navigation -->
+          <nav class="flex flex-col gap-2 mt-4 flex-1">
+            <a
+              class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#616f89] dark:text-[#9ca3af] hover:bg-gray-100 dark:hover:bg-[#2a3441] hover:text-[#111318] dark:hover:text-white transition-all group"
+              href="dashbaord.html"
+            >
+              <span
+                class="material-symbols-outlined group-hover:scale-105 transition-transform"
+                data-icon="dashboard"
+                >dashboard</span
+              >
+              <p class="text-sm font-medium">Dashboard</p>
+            </a>
+            <a
+              class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 text-primary group"
+              href="usuarios.html"
+            >
+              <span
+                class="material-symbols-outlined group-hover:scale-105 transition-transform"
+                data-icon="group"
+                >group</span
+              >
+              <p class="text-sm font-medium">Usuarios</p>
+            </a>
+          </nav>
+          <!-- Footer / Logout -->
+          <div class="flex flex-col gap-1 mt-auto">
+            <a
+              class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+              href="#"
+            >
+              <span class="material-symbols-outlined">logout</span>
+              <p class="text-sm font-medium">Cerrar Sesión</p>
+            </a>
+          </div>
+        </div>
+      </aside>
+      <!-- Main Content -->
+      <main
+        class="flex-1 flex flex-col h-full overflow-y-auto relative scroll-smooth"
+      >
+        <!-- Top Header -->
+        <header
+          class="sticky top-0 z-10 w-full bg-white/80 dark:bg-[#1a2332]/90 backdrop-blur-md border-b border-[#e5e7eb] dark:border-[#2a3441] px-6 py-3 flex items-center justify-between"
+        >
+          <div class="flex flex-col">
+            <h2 class="text-xl font-bold text-[#111318] dark:text-white">
+              Gestión de Usuarios
+            </h2>
+            <p class="text-xs text-[#616f89] dark:text-[#9ca3af]">
+              Administra el acceso y los roles de los usuarios de la plataforma
+            </p>
+          </div>
+          <div class="flex items-center gap-4">
+            <!-- Profile -->
+            <div
+              class="flex items-center gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#2a3441] p-1.5 rounded-lg transition-colors"
+            >
+              <div
+                class="size-8 rounded-full bg-cover bg-center border border-gray-200 dark:border-gray-600"
+                data-alt="User profile avatar image showing a professional headshot"
+                style="
+                  background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCNA_iKUupHtENY8ucynr644LUudi01Ia-QF1nnwh6coDYGsVptHUZ3skPzqLMK8v6T7R9lCv9s4IEFIoaxM2TZJtv_qEy7d-82Wlk_Y2WAo37WuZMi4wqyMMDkCaRzHGqZxruCmfxeBQicz4V4cTQzy80hB7noZUgL7K7m8AsgzwtOTPXzaPEuyxQa51hkM_rQY5HShA4C5uLqC8ayLgbzlQqbjGpWkZR4x0IYyrFf1iJEsTKGypumPr99w_BtWurD_36UcobXUzM');
+                "
+              ></div>
+              <div class="hidden lg:flex flex-col">
+                <span
+                  class="text-xs font-semibold text-[#111318] dark:text-white"
+                  >Usuario Admin</span
+                >
+                <span class="text-[10px] text-[#616f89] dark:text-[#9ca3af]"
+                  >Super Administrador</span
+                >
+              </div>
+              <span
+                class="material-symbols-outlined text-[#616f89] dark:text-[#9ca3af] text-[18px]"
+                >expand_more</span
+              >
+            </div>
+          </div>
+        </header>
+        <div class="p-6 md:p-8 max-w-7xl mx-auto w-full flex flex-col gap-6">
+          <!-- Page Heading -->
+          <div class="flex flex-wrap justify-between items-center gap-4">
+            <div class="flex flex-col gap-2">
+              <h1
+                class="text-[#111318] dark:text-white text-2xl md:text-3xl font-bold leading-tight tracking-tight"
+              >
+                Gestión de Usuarios
+              </h1>
+              <p class="text-[#616f89] dark:text-gray-400 text-sm font-normal">
+                Crea nuevos perfiles, gestiona permisos y administra el acceso
+                de los usuarios.
+              </p>
+            </div>
+            <button
+              onclick="openModal('addUserModal')"
+              class="flex items-center justify-center gap-2 rounded-lg h-11 px-5 bg-primary hover:bg-blue-700 text-white text-sm font-bold leading-normal tracking-[0.015em] transition-colors shadow-sm shadow-blue-200 dark:shadow-none"
+            >
+              <span class="material-symbols-outlined text-[20px]">add</span>
+              <span class="truncate">Añadir Nuevo Usuario</span>
+            </button>
+          </div>
+          <!-- Filters & Search Toolbar -->
+          <div
+            class="flex flex-col md:flex-row justify-between gap-4 bg-white dark:bg-[#1a2332] p-4 rounded-xl border border-[#e5e7eb] dark:border-[#2a3441] shadow-sm"
+          >
+            <!-- Search -->
+            <div class="w-full md:max-w-md">
+              <div
+                class="relative flex items-center w-full h-10 rounded-lg focus-within:ring-2 focus-within:ring-primary overflow-hidden border border-[#dbdfe6] dark:border-gray-600 bg-white dark:bg-[#1a2332]"
+              >
+                <div class="grid place-items-center h-full w-10 text-[#616f89]">
+                  <span class="material-symbols-outlined text-[20px]"
+                    >search</span
+                  >
+                </div>
+                <input
+                  class="peer h-full w-full outline-none text-sm text-[#111318] dark:text-white bg-transparent pr-2 placeholder:text-[#9ca3af]"
+                  id="search"
+                  placeholder="Buscar por nombre, correo o ID..."
+                  type="text"
+                />
+              </div>
+            </div>
+            <!-- Chips / Filters -->
+            <div class="flex flex-wrap items-center gap-3">
+              <div class="relative group">
+                <button
+                  class="flex h-10 items-center justify-between gap-x-2 rounded-lg bg-[#f0f2f4] dark:bg-[#2a3441] hover:bg-[#e5e7eb] dark:hover:bg-[#1f2937] px-4 transition-colors min-w-[140px]"
+                >
+                  <span
+                    class="text-[#111318] dark:text-white text-sm font-medium"
+                    >Rol: Todos</span
+                  >
+                  <span
+                    class="material-symbols-outlined text-[#616f89] text-[20px]"
+                    >keyboard_arrow_down</span
+                  >
+                </button>
+                <!-- Dropdown (Hidden by default, visual representation) -->
+              </div>
+              <div class="relative group">
+                <button
+                  class="flex h-10 items-center justify-between gap-x-2 rounded-lg bg-[#f0f2f4] dark:bg-[#2a3441] hover:bg-[#e5e7eb] dark:hover:bg-[#1f2937] px-4 transition-colors min-w-[150px]"
+                >
+                  <span
+                    class="text-[#111318] dark:text-white text-sm font-medium"
+                    >Estado: Todos</span
+                  >
+                  <span
+                    class="material-symbols-outlined text-[#616f89] text-[20px]"
+                    >keyboard_arrow_down</span
+                  >
+                </button>
+              </div>
+              <button
+                class="flex h-10 w-10 items-center justify-center rounded-lg border border-[#dbdfe6] dark:border-[#2a3441] bg-white dark:bg-[#1a2332] text-[#616f89] hover:bg-gray-50 dark:hover:bg-[#2a3441] transition-colors"
+                title="Exportar"
+              >
+                <span class="material-symbols-outlined text-[20px]"
+                  >download</span
+                >
+              </button>
+            </div>
+          </div>
+          <!-- Table Section -->
+          <div
+            class="bg-white dark:bg-[#1a2332] rounded-xl border border-[#e5e7eb] dark:border-[#2a3441] shadow-sm overflow-hidden flex flex-col"
+          >
+            <div class="overflow-x-auto custom-scrollbar">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr
+                    class="border-b border-[#e5e7eb] dark:border-[#2a3441] bg-gray-50 dark:bg-[#1f2937]/50"
+                  >
+                    <th
+                      class="py-4 px-6 text-xs font-bold uppercase tracking-wider text-[#616f89] dark:text-gray-400 w-[60px]"
+                    >
+                      <input
+                        class="rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-600 dark:bg-[#1a2332]"
+                        type="checkbox"
+                      />
+                    </th>
+                    <th
+                      class="py-4 px-6 text-xs font-bold uppercase tracking-wider text-[#616f89] dark:text-gray-400 min-w-[250px]"
+                    >
+                      Usuario
+                    </th>
+                    <th
+                      class="py-4 px-6 text-xs font-bold uppercase tracking-wider text-[#616f89] dark:text-gray-400 min-w-[150px]"
+                    >
+                      Rol
+                    </th>
+                    <th
+                      class="py-4 px-6 text-xs font-bold uppercase tracking-wider text-[#616f89] dark:text-gray-400 min-w-[120px]"
+                    >
+                      Estado
+                    </th>
+                    <th
+                      class="py-4 px-6 text-xs font-bold uppercase tracking-wider text-[#616f89] dark:text-gray-400 min-w-[180px]"
+                    >
+                      Última Actividad
+                    </th>
+                    <th
+                      class="py-4 px-6 text-xs font-bold uppercase tracking-wider text-[#616f89] dark:text-gray-400 text-right min-w-[120px]"
+                    >
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-[#e5e7eb] dark:divide-gray-700">
+                  <!-- User Row 1 -->
+                  <tr
+                    class="group hover:bg-[#f9fafb] dark:hover:bg-[#1f2937]/50 transition-colors"
+                  >
+                    <td class="py-4 px-6">
+                      <input
+                        class="rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-600 dark:bg-[#1a2332]"
+                        type="checkbox"
+                      />
+                    </td>
+                    <td class="py-4 px-6">
+                      <div class="flex items-center gap-4">
+                        <div class="relative">
+                          <div
+                            class="size-10 rounded-full bg-cover bg-center border border-gray-200 dark:border-gray-600"
+                            data-alt="Profile picture of Ana García"
+                            style="
+                              background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAz2Q-enfsnVog2RIdk2qDUL9q1WH80OTchPWseiA0fWkLs_E5piYnevLtl8Y-7URgh3oxDYf1Y1yb__v-gSdDyUIOXvaaOh0DDlqdo1RRqRtheoQakqXcly2v60iBIkyHDJ92l9Jv021U1hkL5PSKQBXHH80oLUDmhuhuaU9Z_gQR5PFGbjzlDoyg9KOSM1iGINPoKDHvPp-pssKLnXIipl2-XACfoZTRh4J7IA8Xtj7s0KmiAmt1f1jthEhBJS4xrMHMjYxYkf1U');
+                            "
+                          ></div>
+                          <div
+                            class="absolute bottom-0 right-0 size-3 rounded-full bg-green-500 border-2 border-white dark:border-[#1a202c]"
+                          ></div>
+                        </div>
+                        <div class="flex flex-col">
+                          <span
+                            class="text-sm font-bold text-[#111318] dark:text-white"
+                            >Ana García</span
+                          >
+                          <span
+                            class="text-sm text-[#616f89] dark:text-gray-400"
+                            >ana.garcia@edu.com</span
+                          >
+                        </div>
+                      </div>
+                    </td>
+                    <td class="py-4 px-6">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-100 dark:border-blue-800"
+                      >
+                        <span class="material-symbols-outlined text-[14px]"
+                          >school</span
+                        >
+                        Estudiante
+                      </span>
+                    </td>
+                    <td class="py-4 px-6">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                      >
+                        <span class="size-1.5 rounded-full bg-green-500"></span>
+                        Activo
+                      </span>
+                    </td>
+                    <td
+                      class="py-4 px-6 text-sm text-[#111318] dark:text-gray-300"
+                    >
+                      Hace 2 horas
+                    </td>
+                    <td class="py-4 px-6 text-right">
+                      <div
+                        class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <button
+                          class="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                          title="Ver Detalles"
+                          onclick="openUserDetailsModal('Ana García', 'Estudiante', 'ana.garcia@edu.com', 'Activo', ['Matemáticas I', 'Física Básica', 'Programación Web'])"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >visibility</span
+                          >
+                        </button>
+                        <button
+                          class="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-primary hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                          title="Ver/Editar"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >edit</span
+                          >
+                        </button>
+                        <button
+                          class="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
+                          title="Restablecer Contraseña"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >lock_reset</span
+                          >
+                        </button>
+                        <button
+                          class="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          title="Eliminar"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >delete</span
+                          >
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  <!-- User Row 2 -->
+                  <tr
+                    class="group hover:bg-[#f9fafb] dark:hover:bg-[#1f2937]/50 transition-colors"
+                  >
+                    <td class="py-4 px-6">
+                      <input
+                        class="rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-600 dark:bg-[#1a2332]"
+                        type="checkbox"
+                      />
+                    </td>
+                    <td class="py-4 px-6">
+                      <div class="flex items-center gap-4">
+                        <div class="relative">
+                          <div
+                            class="size-10 rounded-full bg-cover bg-center border border-gray-200 dark:border-gray-600"
+                            data-alt="Profile picture of Carlos Ruiz"
+                            style="
+                              background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDsKiasHln_Kp-DOHdjSTX5MBjwewmZgY6vKYz6MiVRUCGdmOT3yFjspXXJSgNfnZKQoW6JMuzTBcUwvUS6MjNRX8HM5f9W7Y1VuKKgDuGIvn-RGQFvlc4WTvAzu0-sCyiZD1dcynnLjl6B8scPrUOwJTeL2D6qLGb7kVGcKi4cnCSXr8hwxHe81M3ejS5PYffvDqYi0zKwks65FptitDW_j_31S6fftheaHfiV57Y_5ahdfRrAuvkNEJd6Jb035wmwLRuGikZaPiw');
+                            "
+                          ></div>
+                          <div
+                            class="absolute bottom-0 right-0 size-3 rounded-full bg-green-500 border-2 border-white dark:border-[#1a202c]"
+                          ></div>
+                        </div>
+                        <div class="flex flex-col">
+                          <span
+                            class="text-sm font-bold text-[#111318] dark:text-white"
+                            >Carlos Ruiz</span
+                          >
+                          <span
+                            class="text-sm text-[#616f89] dark:text-gray-400"
+                            >carlos.ruiz@edu.com</span
+                          >
+                        </div>
+                      </div>
+                    </td>
+                    <td class="py-4 px-6">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border border-purple-100 dark:border-purple-800"
+                      >
+                        <span class="material-symbols-outlined text-[14px]"
+                          >cast_for_education</span
+                        >
+                        Profesor
+                      </span>
+                    </td>
+                    <td class="py-4 px-6">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                      >
+                        <span class="size-1.5 rounded-full bg-green-500"></span>
+                        Activo
+                      </span>
+                    </td>
+                    <td
+                      class="py-4 px-6 text-sm text-[#111318] dark:text-gray-300"
+                    >
+                      Ayer
+                    </td>
+                    <td class="py-4 px-6 text-right">
+                      <div
+                        class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <button
+                          class="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                          title="Ver Detalles"
+                          onclick="openUserDetailsModal('Carlos Ruiz', 'Profesor', 'carlos.ruiz@edu.com', 'Activo', ['Álgebra Lineal', 'Cálculo Diferencial'], true)"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >visibility</span
+                          >
+                        </button>
+                        <button
+                          class="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-primary hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                          title="Ver/Editar"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >edit</span
+                          >
+                        </button>
+                        <button
+                          class="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
+                          title="Restablecer Contraseña"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >lock_reset</span
+                          >
+                        </button>
+                        <button
+                          class="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          title="Eliminar"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >delete</span
+                          >
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  <!-- User Row 3 -->
+                  <tr
+                    class="group hover:bg-[#f9fafb] dark:hover:bg-[#1f2937]/50 transition-colors"
+                  >
+                    <td class="py-4 px-6">
+                      <input
+                        class="rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-600 dark:bg-[#1a2332]"
+                        type="checkbox"
+                      />
+                    </td>
+                    <td class="py-4 px-6">
+                      <div class="flex items-center gap-4">
+                        <div class="relative">
+                          <div
+                            class="size-10 rounded-full bg-cover bg-center border border-gray-200 dark:border-gray-600 flex items-center justify-center bg-gray-100 dark:bg-[#2a3441] text-gray-500 dark:text-gray-400 font-bold"
+                            data-alt="Default avatar for Elena M"
+                          >
+                            EM
+                          </div>
+                          <div
+                            class="absolute bottom-0 right-0 size-3 rounded-full bg-gray-400 border-2 border-white dark:border-[#1a202c]"
+                          ></div>
+                        </div>
+                        <div class="flex flex-col">
+                          <span
+                            class="text-sm font-bold text-[#111318] dark:text-white"
+                            >Elena M.</span
+                          >
+                          <span
+                            class="text-sm text-[#616f89] dark:text-gray-400"
+                            >elena.m@edu.com</span
+                          >
+                        </div>
+                      </div>
+                    </td>
+                    <td class="py-4 px-6">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-100 dark:border-blue-800"
+                      >
+                        <span class="material-symbols-outlined text-[14px]"
+                          >school</span
+                        >
+                        Estudiante
+                      </span>
+                    </td>
+                    <td class="py-4 px-6">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 dark:bg-[#2a3441] dark:text-gray-300"
+                      >
+                        <span class="size-1.5 rounded-full bg-gray-400"></span>
+                        Inactivo
+                      </span>
+                    </td>
+                    <td
+                      class="py-4 px-6 text-sm text-[#111318] dark:text-gray-300"
+                    >
+                      Hace 5 días
+                    </td>
+                    <td class="py-4 px-6 text-right">
+                      <div
+                        class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <button
+                          class="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                          title="Ver Detalles"
+                          onclick="openUserDetailsModal('Jorge T.', 'Administrador', 'jorge.t@edu.com', 'Activo', [], false, true)"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >visibility</span
+                          >
+                        </button>
+                        <button
+                          class="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-primary hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                          title="Ver/Editar"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >edit</span
+                          >
+                        </button>
+                        <button
+                          class="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
+                          title="Restablecer Contraseña"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >lock_reset</span
+                          >
+                        </button>
+                        <button
+                          class="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          title="Eliminar"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >delete</span
+                          >
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  <!-- User Row 4 -->
+                  <tr
+                    class="group hover:bg-[#f9fafb] dark:hover:bg-[#1f2937]/50 transition-colors"
+                  >
+                    <td class="py-4 px-6">
+                      <input
+                        class="rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-600 dark:bg-[#1a2332]"
+                        type="checkbox"
+                      />
+                    </td>
+                    <td class="py-4 px-6">
+                      <div class="flex items-center gap-4">
+                        <div class="relative">
+                          <div
+                            class="size-10 rounded-full bg-cover bg-center border border-gray-200 dark:border-gray-600"
+                            data-alt="Profile picture of Jorge T"
+                            style="
+                              background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB1vm-0eL4TSIof6pyA7M5vxHQHAlDkwDWU9cYt_j3o7DMVjMdK0VsuM01WyuEG4D4gKkyERYyh_SDVRuzTMoUn2BTeSBrdiw3x2RtvtyHIgj4Fs5j_SuctxAcm0BbYa4JO_3FS3RbaJVbMmwVdU7jSd7yR3J-qf5iNC2zN4LbSpnZrbQ1mLAnFsssYBt8RvEBrqYEMxXFj5P6pPx3CFCNQqT1w5ME8LDkz3qB6Wh2WPjME3EGx-3NxkBmepGEQptz-Ga2kGs3bFlE');
+                            "
+                          ></div>
+                          <div
+                            class="absolute bottom-0 right-0 size-3 rounded-full bg-green-500 border-2 border-white dark:border-[#1a202c]"
+                          ></div>
+                        </div>
+                        <div class="flex flex-col">
+                          <span
+                            class="text-sm font-bold text-[#111318] dark:text-white"
+                            >Jorge T.</span
+                          >
+                          <span
+                            class="text-sm text-[#616f89] dark:text-gray-400"
+                            >jorge.t@edu.com</span
+                          >
+                        </div>
+                      </div>
+                    </td>
+                    <td class="py-4 px-6">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800"
+                      >
+                        <span class="material-symbols-outlined text-[14px]"
+                          >admin_panel_settings</span
+                        >
+                        Admin
+                      </span>
+                    </td>
+                    <td class="py-4 px-6">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                      >
+                        <span class="size-1.5 rounded-full bg-green-500"></span>
+                        Activo
+                      </span>
+                    </td>
+                    <td
+                      class="py-4 px-6 text-sm text-[#111318] dark:text-gray-300"
+                    >
+                      Hace 5 minutos
+                    </td>
+                    <td class="py-4 px-6 text-right">
+                      <div
+                        class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <button
+                          class="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                          title="Ver Detalles"
+                          onclick="openUserDetailsModal('Lucía P.', 'Estudiante', 'lucia.p@edu.com', 'Pendiente', ['Introducción a la Programación'])"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >visibility</span
+                          >
+                        </button>
+                        <button
+                          class="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-primary hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                          title="Ver/Editar"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >edit</span
+                          >
+                        </button>
+                        <button
+                          class="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
+                          title="Restablecer Contraseña"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >lock_reset</span
+                          >
+                        </button>
+                        <button
+                          class="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          title="Eliminar"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >delete</span
+                          >
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  <!-- User Row 5 -->
+                  <tr
+                    class="group hover:bg-[#f9fafb] dark:hover:bg-[#1f2937]/50 transition-colors"
+                  >
+                    <td class="py-4 px-6">
+                      <input
+                        class="rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-600 dark:bg-[#1a2332]"
+                        type="checkbox"
+                      />
+                    </td>
+                    <td class="py-4 px-6">
+                      <div class="flex items-center gap-4">
+                        <div class="relative">
+                          <div
+                            class="size-10 rounded-full bg-cover bg-center border border-gray-200 dark:border-gray-600"
+                            data-alt="Profile picture of Lucía P"
+                            style="
+                              background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCD235qPF_XVvN2pFZcMMK7NwwcB4bpYClLNKW9cZLnU8KrTkl2OKi9djxzaJkKG21qsHumPr5PCRXV5M4HtKdgzLIopadCp_Jt94_Af4qNZMmxUP1OxzK17hiIyh6a6_LTBSct1hIcAtsg-bRL1SEFI8QmqGksDvCl_KO7PReya94N2_Njz7sAI0ccgr8pjfMc21sHtzfp0Eyj_8Nruu-gVHCTakGPcO96mgxLXaozIFLuFCSZ9EDstzllXfsLtmcjW9IqKOnEtYU');
+                            "
+                          ></div>
+                          <div
+                            class="absolute bottom-0 right-0 size-3 rounded-full bg-yellow-500 border-2 border-white dark:border-[#1a202c]"
+                          ></div>
+                        </div>
+                        <div class="flex flex-col">
+                          <span
+                            class="text-sm font-bold text-[#111318] dark:text-white"
+                            >Lucía P.</span
+                          >
+                          <span
+                            class="text-sm text-[#616f89] dark:text-gray-400"
+                            >lucia.p@edu.com</span
+                          >
+                        </div>
+                      </div>
+                    </td>
+                    <td class="py-4 px-6">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-100 dark:border-blue-800"
+                      >
+                        <span class="material-symbols-outlined text-[14px]"
+                          >school</span
+                        >
+                        Estudiante
+                      </span>
+                    </td>
+                    <td class="py-4 px-6">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
+                      >
+                        <span
+                          class="size-1.5 rounded-full bg-yellow-500"
+                        ></span>
+                        Pendiente
+                      </span>
+                    </td>
+                    <td
+                      class="py-4 px-6 text-sm text-[#111318] dark:text-gray-300"
+                    >
+                      Nunca
+                    </td>
+                    <td class="py-4 px-6 text-right">
+                      <div
+                        class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <button
+                          class="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                          title="Ver Detalles"
+                          onclick="openUserDetailsModal('Ana García', 'Estudiante', 'ana.garcia@edu.com', 'Activo', ['Matemáticas I', 'Física Básica', 'Programación Web'])"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >visibility</span
+                          >
+                        </button>
+                        <button
+                          class="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-primary hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                          title="Ver/Editar"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >edit</span
+                          >
+                        </button>
+                        <button
+                          class="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
+                          title="Restablecer Contraseña"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >lock_reset</span
+                          >
+                        </button>
+                        <button
+                          class="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          title="Eliminar"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >delete</span
+                          >
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <!-- Pagination -->
+            <div
+              class="border-t border-[#e5e7eb] dark:border-[#2a3441] p-4 bg-white dark:bg-[#1a2332] flex items-center justify-between flex-wrap gap-4"
+            >
+              <div
+                class="flex items-center gap-2 text-sm text-[#616f89] dark:text-gray-400"
+              >
+                <span>Mostrar</span>
+                <select
+                  class="h-8 rounded border-gray-300 dark:border-[#2a3441] bg-transparent text-[#111318] dark:text-white text-sm focus:border-primary focus:ring-primary"
+                >
+                  <option>10</option>
+                  <option>20</option>
+                  <option>50</option>
+                </select>
+                <span>filas por página</span>
+              </div>
+              <div class="flex items-center gap-4">
+                <span class="text-sm text-[#616f89] dark:text-gray-400">
+                  Mostrando
+                  <span class="font-bold text-[#111318] dark:text-white"
+                    >1-5</span
+                  >
+                  de
+                  <span class="font-bold text-[#111318] dark:text-white"
+                    >48</span
+                  >
+                </span>
+                <div class="flex items-center gap-1">
+                  <button
+                    class="size-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-[#2a3441] text-[#616f89] dark:text-gray-400 disabled:opacity-50"
+                    disabled=""
+                  >
+                    <span class="material-symbols-outlined text-[20px]"
+                      >chevron_left</span
+                    >
+                  </button>
+                  <button
+                    class="size-8 flex items-center justify-center rounded bg-primary text-white text-sm font-bold"
+                  >
+                    1
+                  </button>
+                  <button
+                    class="size-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-[#2a3441] text-[#616f89] dark:text-gray-400 text-sm font-medium"
+                  >
+                    2
+                  </button>
+                  <button
+                    class="size-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-[#2a3441] text-[#616f89] dark:text-gray-400 text-sm font-medium"
+                  >
+                    3
+                  </button>
+                  <span class="px-1 text-[#616f89]">...</span>
+                  <button
+                    class="size-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-[#2a3441] text-[#616f89] dark:text-gray-400 text-sm font-medium"
+                  >
+                    10
+                  </button>
+                  <button
+                    class="size-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-[#616f89] dark:text-gray-400"
+                  >
+                    <span class="material-symbols-outlined text-[20px]"
+                      >chevron_right</span
+                    >
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Modal: Editar Usuario -->
+    <div
+      id="editUserModal"
+      class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm"
+    >
+      <div
+        class="bg-white dark:bg-[#1a2332] rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+      >
+        <div
+          class="sticky top-0 bg-white dark:bg-[#1a2332] border-b border-[#e5e7eb] dark:border-[#2a3441] px-6 py-4 flex items-center justify-between"
+        >
+          <h2 class="text-xl font-bold text-[#111318] dark:text-white">
+            Editar Usuario
+          </h2>
+          <button
+            onclick="closeModal('editUserModal')"
+            class="text-[#616f89] hover:text-[#111318] dark:hover:text-white"
+          >
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <form class="p-6 flex flex-col gap-5">
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-medium text-[#111318] dark:text-gray-200"
+              >Nombre Completo</label
+            >
+            <input
+              type="text"
+              class="w-full h-11 rounded-lg border border-[#dbdfe6] dark:border-gray-600 bg-white dark:bg-[#1a2332] text-[#111318] dark:text-white px-4 focus:border-primary focus:ring-1 focus:ring-primary"
+              placeholder="Nombre completo"
+            />
+          </div>
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-medium text-[#111318] dark:text-gray-200"
+              >Correo Electrónico</label
+            >
+            <input
+              type="email"
+              class="w-full h-11 rounded-lg border border-[#dbdfe6] dark:border-gray-600 bg-white dark:bg-[#1a2332] text-[#111318] dark:text-white px-4 focus:border-primary focus:ring-1 focus:ring-primary"
+              placeholder="correo@edu.com"
+            />
+          </div>
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-medium text-[#111318] dark:text-gray-200"
+              >Rol</label
+            >
+            <select
+              class="w-full h-11 rounded-lg border border-[#dbdfe6] dark:border-gray-600 bg-white dark:bg-[#1a2332] text-[#111318] dark:text-white px-4 focus:border-primary focus:ring-1 focus:ring-primary"
+            >
+              <option value="estudiante">Estudiante</option>
+              <option value="profesor">Profesor</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-medium text-[#111318] dark:text-gray-200"
+              >Estado</label
+            >
+            <select
+              class="w-full h-11 rounded-lg border border-[#dbdfe6] dark:border-gray-600 bg-white dark:bg-[#1a2332] text-[#111318] dark:text-white px-4 focus:border-primary focus:ring-1 focus:ring-primary"
+            >
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+              <option value="pendiente">Pendiente</option>
+            </select>
+          </div>
+          <div
+            class="flex gap-3 justify-end pt-4 border-t border-[#e5e7eb] dark:border-[#2a3441]"
+          >
+            <button
+              type="button"
+              onclick="closeModal('editUserModal')"
+              class="px-5 py-2.5 rounded-lg border border-[#dbdfe6] dark:border-[#2a3441] text-[#111318] dark:text-white hover:bg-gray-50 dark:hover:bg-[#2a3441] transition-colors font-medium"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              class="px-5 py-2.5 rounded-lg bg-primary hover:bg-blue-700 text-white font-medium transition-colors"
+            >
+              Guardar Cambios
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: Añadir Nuevo Usuario -->
+    <div
+      id="addUserModal"
+      class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm"
+    >
+      <div
+        class="bg-white dark:bg-[#1a2332] rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+      >
+        <div
+          class="sticky top-0 bg-white dark:bg-[#1a2332] border-b border-[#e5e7eb] dark:border-[#2a3441] px-6 py-4 flex items-center justify-between"
+        >
+          <h2 class="text-xl font-bold text-[#111318] dark:text-white">
+            Añadir Nuevo Usuario
+          </h2>
+          <button
+            onclick="closeModal('addUserModal')"
+            class="text-[#616f89] hover:text-[#111318] dark:hover:text-white"
+          >
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <form class="p-6 flex flex-col gap-5">
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-medium text-[#111318] dark:text-gray-200"
+              >Nombre Completo</label
+            >
+            <input
+              type="text"
+              class="w-full h-11 rounded-lg border border-[#dbdfe6] dark:border-gray-600 bg-white dark:bg-[#1a2332] text-[#111318] dark:text-white px-4 focus:border-primary focus:ring-1 focus:ring-primary"
+              placeholder="Nombre completo"
+              required
+            />
+          </div>
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-medium text-[#111318] dark:text-gray-200"
+              >Correo Electrónico</label
+            >
+            <input
+              type="email"
+              class="w-full h-11 rounded-lg border border-[#dbdfe6] dark:border-gray-600 bg-white dark:bg-[#1a2332] text-[#111318] dark:text-white px-4 focus:border-primary focus:ring-1 focus:ring-primary"
+              placeholder="correo@edu.com"
+              required
+            />
+          </div>
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-medium text-[#111318] dark:text-gray-200"
+              >Contraseña Temporal</label
+            >
+            <input
+              type="password"
+              class="w-full h-11 rounded-lg border border-[#dbdfe6] dark:border-gray-600 bg-white dark:bg-[#1a2332] text-[#111318] dark:text-white px-4 focus:border-primary focus:ring-1 focus:ring-primary"
+              placeholder="••••••••"
+              required
+            />
+            <p class="text-xs text-[#616f89] dark:text-gray-400">
+              El usuario deberá cambiar esta contraseña en su primer inicio de
+              sesión.
+            </p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-medium text-[#111318] dark:text-gray-200"
+              >Rol</label
+            >
+            <select
+              class="w-full h-11 rounded-lg border border-[#dbdfe6] dark:border-gray-600 bg-white dark:bg-[#1a2332] text-[#111318] dark:text-white px-4 focus:border-primary focus:ring-1 focus:ring-primary"
+              required
+            >
+              <option value="">Seleccionar rol</option>
+              <option value="estudiante">Estudiante</option>
+              <option value="profesor">Profesor</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+          <div
+            class="flex gap-3 justify-end pt-4 border-t border-[#e5e7eb] dark:border-[#2a3441]"
+          >
+            <button
+              type="button"
+              onclick="closeModal('addUserModal')"
+              class="px-5 py-2.5 rounded-lg border border-[#dbdfe6] dark:border-[#2a3441] text-[#111318] dark:text-white hover:bg-gray-50 dark:hover:bg-[#2a3441] transition-colors font-medium"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              class="px-5 py-2.5 rounded-lg bg-primary hover:bg-blue-700 text-white font-medium transition-colors"
+            >
+              Crear Usuario
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: Restablecer Contraseña -->
+    <div
+      id="resetPasswordModal"
+      class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm"
+    >
+      <div
+        class="bg-white dark:bg-[#1a2332] rounded-xl shadow-2xl max-w-md w-full mx-4"
+      >
+        <div
+          class="px-6 py-4 border-b border-[#e5e7eb] dark:border-[#2a3441] flex items-center justify-between"
+        >
+          <h2 class="text-xl font-bold text-[#111318] dark:text-white">
+            Restablecer Contraseña
+          </h2>
+          <button
+            onclick="closeModal('resetPasswordModal')"
+            class="text-[#616f89] hover:text-[#111318] dark:hover:text-white"
+          >
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <div class="p-6 flex flex-col gap-5">
+          <p class="text-[#616f89] dark:text-gray-400">
+            ¿Estás seguro de que deseas restablecer la contraseña de este
+            usuario? Se enviará una nueva contraseña temporal a su correo
+            electrónico.
+          </p>
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-medium text-[#111318] dark:text-gray-200"
+              >Nueva Contraseña Temporal</label
+            >
+            <input
+              type="password"
+              class="w-full h-11 rounded-lg border border-[#dbdfe6] dark:border-gray-600 bg-white dark:bg-[#1a2332] text-[#111318] dark:text-white px-4 focus:border-primary focus:ring-1 focus:ring-primary"
+              placeholder="••••••••"
+            />
+            <p class="text-xs text-[#616f89] dark:text-gray-400">
+              Dejar en blanco para generar automáticamente.
+            </p>
+          </div>
+          <div
+            class="flex gap-3 justify-end pt-4 border-t border-[#e5e7eb] dark:border-[#2a3441]"
+          >
+            <button
+              type="button"
+              onclick="closeModal('resetPasswordModal')"
+              class="px-5 py-2.5 rounded-lg border border-[#dbdfe6] dark:border-[#2a3441] text-[#111318] dark:text-white hover:bg-gray-50 dark:hover:bg-[#2a3441] transition-colors font-medium"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onclick="closeModal('resetPasswordModal')"
+              class="px-5 py-2.5 rounded-lg bg-primary hover:bg-blue-700 text-white font-medium transition-colors"
+            >
+              Restablecer Contraseña
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Ver Detalles de Usuario -->
+    <div
+      id="userDetailsModal"
+      class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm"
+    >
+      <div
+        class="bg-white dark:bg-[#1a2332] rounded-xl shadow-2xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+      >
+        <div
+          class="sticky top-0 bg-white dark:bg-[#1a2332] border-b border-[#e5e7eb] dark:border-[#2a3441] px-6 py-4 flex items-center justify-between"
+        >
+          <h2 class="text-xl font-bold text-[#111318] dark:text-white">
+            Detalles del Usuario
+          </h2>
+          <button
+            onclick="closeModal('userDetailsModal')"
+            class="text-[#616f89] hover:text-[#111318] dark:hover:text-white"
+          >
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <div class="p-6 flex flex-col gap-6">
+          <!-- User Info Section -->
+          <div
+            class="flex items-start gap-4 pb-6 border-b border-[#e5e7eb] dark:border-[#2a3441]"
+          >
+            <div
+              class="size-16 rounded-full bg-cover bg-center border-2 border-gray-200 dark:border-gray-600"
+              id="userDetailsAvatar"
+            ></div>
+            <div class="flex-1">
+              <h3
+                class="text-2xl font-bold text-[#111318] dark:text-white mb-1"
+                id="userDetailsName"
+              ></h3>
+              <p
+                class="text-[#616f89] dark:text-gray-400 mb-2"
+                id="userDetailsEmail"
+              ></p>
+              <div class="flex items-center gap-3">
+                <span
+                  id="userDetailsRole"
+                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
+                ></span>
+                <span
+                  id="userDetailsStatus"
+                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+                ></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Classes Section -->
+          <div id="classesSection">
+            <h4
+              class="text-lg font-bold text-[#111318] dark:text-white mb-4 flex items-center gap-2"
+            >
+              <span class="material-symbols-outlined text-primary">class</span>
+              <span id="classesSectionTitle">Clases</span>
+            </h4>
+            <div id="classesList" class="flex flex-col gap-3">
+              <!-- Classes will be dynamically inserted here -->
+            </div>
+            <div
+              id="noClassesMessage"
+              class="hidden text-center py-8 text-[#616f89] dark:text-gray-400"
+            >
+              <span class="material-symbols-outlined text-4xl mb-2 block"
+                >class</span
+              >
+              <p>No hay clases registradas</p>
+            </div>
+          </div>
+
+          <!-- Additional Info -->
+          <div
+            class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-[#e5e7eb] dark:border-[#2a3441]"
+          >
+            <div>
+              <p class="text-xs text-[#616f89] dark:text-gray-400 mb-1">
+                Fecha de Registro
+              </p>
+              <p class="text-sm font-medium text-[#111318] dark:text-white">
+                15 de Enero, 2024
+              </p>
+            </div>
+            <div>
+              <p class="text-xs text-[#616f89] dark:text-gray-400 mb-1">
+                Última Actividad
+              </p>
+              <p
+                class="text-sm font-medium text-[#111318] dark:text-white"
+                id="userDetailsLastActivity"
+              ></p>
+            </div>
+          </div>
+
+          <div
+            class="flex gap-3 justify-end pt-4 border-t border-[#e5e7eb] dark:border-[#2a3441]"
+          >
+            <button
+              type="button"
+              onclick="closeModal('userDetailsModal')"
+              class="px-5 py-2.5 rounded-lg border border-[#dbdfe6] dark:border-[#2a3441] text-[#111318] dark:text-white hover:bg-gray-50 dark:hover:bg-[#2a3441] transition-colors font-medium"
+            >
+              Cerrar
+            </button>
+            <button
+              type="button"
+              onclick="closeModal('userDetailsModal'); openModal('editUserModal');"
+              class="px-5 py-2.5 rounded-lg bg-primary hover:bg-blue-700 text-white font-medium transition-colors"
+            >
+              Editar Usuario
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Eliminar Usuario -->
+    <div
+      id="deleteUserModal"
+      class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm"
+    >
+      <div
+        class="bg-white dark:bg-[#1a2332] rounded-xl shadow-2xl max-w-md w-full mx-4"
+      >
+        <div
+          class="px-6 py-4 border-b border-[#e5e7eb] dark:border-[#2a3441] flex items-center justify-between"
+        >
+          <h2 class="text-xl font-bold text-[#111318] dark:text-white">
+            Eliminar Usuario
+          </h2>
+          <button
+            onclick="closeModal('deleteUserModal')"
+            class="text-[#616f89] hover:text-[#111318] dark:hover:text-white"
+          >
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <div class="p-6 flex flex-col gap-5">
+          <div
+            class="flex items-center gap-4 p-4 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-200 dark:border-red-800"
+          >
+            <span
+              class="material-symbols-outlined text-red-600 dark:text-red-400"
+              >warning</span
+            >
+            <p class="text-sm text-red-700 dark:text-red-300 font-medium">
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+          <p class="text-[#616f89] dark:text-gray-400">
+            ¿Estás seguro de que deseas eliminar este usuario? Todos sus datos
+            serán eliminados permanentemente.
+          </p>
+          <div
+            class="flex gap-3 justify-end pt-4 border-t border-[#e5e7eb] dark:border-[#2a3441]"
+          >
+            <button
+              type="button"
+              onclick="closeModal('deleteUserModal')"
+              class="px-5 py-2.5 rounded-lg border border-[#dbdfe6] dark:border-[#2a3441] text-[#111318] dark:text-white hover:bg-gray-50 dark:hover:bg-[#2a3441] transition-colors font-medium"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onclick="closeModal('deleteUserModal')"
+              class="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-colors"
+            >
+              Eliminar Usuario
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function openModal(modalId) {
+        document.getElementById(modalId).classList.remove("hidden");
+        document.getElementById(modalId).classList.add("flex");
+        document.body.style.overflow = "hidden";
+      }
+
+      function closeModal(modalId) {
+        document.getElementById(modalId).classList.add("hidden");
+        document.getElementById(modalId).classList.remove("flex");
+        document.body.style.overflow = "auto";
+      }
+
+      function openUserDetailsModal(
+        name,
+        role,
+        email,
+        status,
+        classes = [],
+        isProfessor = false,
+        isAdmin = false
+      ) {
+        // Set user info
+        document.getElementById("userDetailsName").textContent = name;
+        document.getElementById("userDetailsEmail").textContent = email;
+        document.getElementById("userDetailsLastActivity").textContent =
+          status === "Activo"
+            ? "Hace 2 horas"
+            : status === "Inactivo"
+            ? "Hace 5 días"
+            : "Nunca";
+
+        // Set role badge
+        const roleElement = document.getElementById("userDetailsRole");
+        roleElement.textContent = role;
+        roleElement.className =
+          "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border";
+        if (role === "Estudiante") {
+          roleElement.className +=
+            " bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-100 dark:border-blue-800";
+          roleElement.innerHTML =
+            '<span class="material-symbols-outlined text-[14px]">school</span> ' +
+            role;
+        } else if (role === "Profesor") {
+          roleElement.className +=
+            " bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border-purple-100 dark:border-purple-800";
+          roleElement.innerHTML =
+            '<span class="material-symbols-outlined text-[14px]">cast_for_education</span> ' +
+            role;
+        } else {
+          roleElement.className +=
+            " bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border-indigo-100 dark:border-indigo-800";
+          roleElement.innerHTML =
+            '<span class="material-symbols-outlined text-[14px]">admin_panel_settings</span> ' +
+            role;
+        }
+
+        // Set status badge
+        const statusElement = document.getElementById("userDetailsStatus");
+        statusElement.textContent = status;
+        statusElement.className =
+          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold";
+        if (status === "Activo") {
+          statusElement.className +=
+            " bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300";
+          statusElement.innerHTML =
+            '<span class="size-1.5 rounded-full bg-green-500"></span> ' +
+            status;
+        } else if (status === "Inactivo") {
+          statusElement.className +=
+            " bg-gray-100 text-gray-600 dark:bg-[#2a3441] dark:text-gray-300";
+          statusElement.innerHTML =
+            '<span class="size-1.5 rounded-full bg-gray-400"></span> ' + status;
+        } else {
+          statusElement.className +=
+            " bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300";
+          statusElement.innerHTML =
+            '<span class="size-1.5 rounded-full bg-yellow-500"></span> ' +
+            status;
+        }
+
+        // Set classes section
+        const classesSectionTitle = document.getElementById(
+          "classesSectionTitle"
+        );
+        const classesList = document.getElementById("classesList");
+        const noClassesMessage = document.getElementById("noClassesMessage");
+
+        if (isProfessor) {
+          classesSectionTitle.textContent = "Clases Creadas";
+        } else if (isAdmin) {
+          classesSectionTitle.textContent = "Información del Administrador";
+          classesList.innerHTML =
+            '<p class="text-[#616f89] dark:text-gray-400">Este usuario tiene acceso completo al sistema de administración.</p>';
+          noClassesMessage.classList.add("hidden");
+          classesList.classList.remove("hidden");
+        } else {
+          classesSectionTitle.textContent = "Clases Inscritas";
+        }
+
+        if (!isAdmin) {
+          if (classes.length > 0) {
+            classesList.innerHTML = "";
+            classes.forEach((className) => {
+              const classItem = document.createElement("div");
+              classItem.className =
+                "flex items-center gap-3 p-3 bg-gray-50 dark:bg-[#1f2937] rounded-lg border border-[#e5e7eb] dark:border-[#2a3441]";
+              classItem.innerHTML = `
+                <div class="bg-primary/10 p-2 rounded-lg">
+                  <span class="material-symbols-outlined text-primary">${
+                    isProfessor ? "class" : "menu_book"
+                  }</span>
+                </div>
+                <div class="flex-1">
+                  <p class="text-sm font-medium text-[#111318] dark:text-white">${className}</p>
+                  <p class="text-xs text-[#616f89] dark:text-gray-400">${
+                    isProfessor ? "Profesor a cargo" : "Estudiante inscrito"
+                  }</p>
+                </div>
+              `;
+              classesList.appendChild(classItem);
+            });
+            noClassesMessage.classList.add("hidden");
+            classesList.classList.remove("hidden");
+          } else {
+            classesList.classList.add("hidden");
+            noClassesMessage.classList.remove("hidden");
+          }
+        }
+
+        // Set avatar (using a placeholder or default)
+        const avatar = document.getElementById("userDetailsAvatar");
+        avatar.style.backgroundImage = `url('https://ui-avatars.com/api/?name=${encodeURIComponent(
+          name
+        )}&background=135bec&color=fff&size=128')`;
+
+        openModal("userDetailsModal");
+      }
+
+      // Event listeners para los botones
+      document.addEventListener("DOMContentLoaded", function () {
+        // Botones editar
+        document
+          .querySelectorAll('button[title="Ver/Editar"]')
+          .forEach((btn) => {
+            btn.onclick = () => openModal("editUserModal");
+          });
+
+        // Botones restablecer contraseña
+        document
+          .querySelectorAll('button[title="Restablecer Contraseña"]')
+          .forEach((btn) => {
+            btn.onclick = () => openModal("resetPasswordModal");
+          });
+
+        // Botones eliminar
+        document.querySelectorAll('button[title="Eliminar"]').forEach((btn) => {
+          btn.onclick = () => openModal("deleteUserModal");
+        });
+
+        // Cerrar modales al hacer clic fuera
+        document.querySelectorAll('[id$="Modal"]').forEach((modal) => {
+          modal.onclick = function (e) {
+            if (e.target === this) {
+              closeModal(this.id);
+            }
+          };
+        });
+      });
+    </script>
+  </body>
+</html>
