@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     face_detection_min_confidence: float = 0.5
     
     # Configuración de detección de parpadeo
-    ear_threshold: float = 1.6  # Umbral EAR para detectar si esta viendo a la pantalla
+    ear_threshold: float = 1.55  # Umbral EAR para detectar si esta viendo a la pantalla
     
     # Configuración de WebSocket
     websocket_check_interval: float = 0.5  # Intervalo en segundos para verificar cambios en WebSocket (blink_count)

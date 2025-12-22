@@ -160,3 +160,8 @@ Una vez que todo esté configurado:
 5. ✅ La página de parpadeos funciona y detecta parpadeos en tiempo real
 
 Si todos estos puntos están verificados, ¡el sistema está listo para usar! 🎉
+
+
+
+
+

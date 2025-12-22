@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html class="light" lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>EduXriva - Mis Clases</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#135bec",
+              "background-light": "#f6f6f8",
+              "background-dark": "#101622",
+              "surface-light": "#ffffff",
+              "surface-dark": "#1a2332",
+            },
+            fontFamily: {
+              display: ["Lexend", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.25rem",
+              lg: "0.5rem",
+              xl: "0.75rem",
+              full: "9999px",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: "Lexend", sans-serif;
+      }
+      .material-symbols-outlined {
+        font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-background-light dark:bg-background-dark text-[#111318] dark:text-white transition-colors duration-200"
+  >
+    <div class="flex h-screen w-full overflow-hidden">
+      <!-- Sidebar -->
+      <aside
+        class="w-64 flex flex-col justify-between bg-white dark:bg-[#1a2332] border-r border-[#e5e7eb] dark:border-[#2a3441] transition-colors duration-200 hidden md:flex z-20"
+      >
+        <div class="flex flex-col gap-4 p-4 h-full">
+          <!-- Logo & Brand -->
+          <div class="flex items-center gap-3 px-2 py-3">
+            <div
+              class="bg-primary aspect-square rounded-lg size-10 flex items-center justify-center text-white"
+            >
+              <span class="material-symbols-outlined !text-[28px]">school</span>
+            </div>
+            <div class="flex flex-col">
+              <h1
+                class="text-[#111318] dark:text-white text-lg font-bold leading-tight"
+              >
+                EduXriva
+              </h1>
+              <p class="text-[#616f89] dark:text-[#9ca3af] text-xs font-normal">
+                Panel Estudiante
+              </p>
+            </div>
+          </div>
+          <!-- Navigation -->
+          <nav class="flex flex-col gap-2 mt-4 flex-1">
+            <a
+              class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#616f89] dark:text-[#9ca3af] hover:bg-gray-100 dark:hover:bg-[#2a3441] hover:text-[#111318] dark:hover:text-white transition-all group"
+              href="dashbaord.html"
+            >
+              <span
+                class="material-symbols-outlined group-hover:scale-105 transition-transform"
+                >dashboard</span
+              >
+              <p class="text-sm font-medium">Dashboard</p>
+            </a>
+            <a
+              class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 text-primary group"
+              href="unirse_clases.html"
+            >
+              <span
+                class="material-symbols-outlined group-hover:scale-105 transition-transform"
+                >group_add</span
+              >
+              <p class="text-sm font-medium">Mis Clases</p>
+            </a>
+            <a
+              class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#616f89] dark:text-[#9ca3af] hover:bg-gray-100 dark:hover:bg-[#2a3441] hover:text-[#111318] dark:hover:text-white transition-all group"
+              href="resultados.html"
+            >
+              <span
+                class="material-symbols-outlined group-hover:scale-105 transition-transform"
+                >analytics</span
+              >
+              <p class="text-sm font-medium">Resultados</p>
+            </a>
+          </nav>
+          <!-- Footer / Logout -->
+          <div class="flex flex-col gap-1 mt-auto">
+            <a
+              class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+              href="../login/login.html"
+            >
+              <span class="material-symbols-outlined">logout</span>
+              <p class="text-sm font-medium">Cerrar Sesión</p>
+            </a>
+          </div>
+        </div>
+      </aside>
+      <!-- Main Content -->
+      <main
+        class="flex-1 flex flex-col h-full overflow-y-auto relative scroll-smooth"
+      >
+        <!-- Top Header -->
+        <header
+          class="sticky top-0 z-10 w-full bg-white/80 dark:bg-[#1a2332]/90 backdrop-blur-md border-b border-[#e5e7eb] dark:border-[#2a3441] px-6 py-3 flex items-center justify-between"
+        >
+          <div class="flex flex-col">
+            <h2 class="text-xl font-bold text-[#111318] dark:text-white">
+              Mis Clases
+            </h2>
+            <p class="text-xs text-[#616f89] dark:text-[#9ca3af]">
+              Selecciona una clase para ver sus videos
+            </p>
+          </div>
+          <div class="flex items-center gap-4">
+            <button
+              onclick="openModal('joinClassModal')"
+              class="bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors shadow-lg shadow-primary/30"
+            >
+              <span class="material-symbols-outlined text-lg">add</span>
+              <span>Unirse a Clase</span>
+            </button>
+            <div
+              class="flex items-center gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#2a3441] p-1.5 rounded-lg transition-colors"
+            >
+              <div
+                class="size-8 rounded-full bg-cover bg-center border border-gray-200 dark:border-gray-600"
+                data-alt="Student profile picture"
+                style="
+                  background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBPdO8EUPwyes0jsoTFnU9pPhn3vnkrZrgzZt21hkSmar32xOGgGCbvuAe4oBV3OtG88JWTJlmyIlst3dk9Y-Yvi9W47BuknjiP7kOedS_MA4WjGAfQxGT_Z600UEgBO2EdVVtnCIZCwC1VtaAyYZHogq-EM-wuhuixcqSo0x01Q3x5xAaDdw_QsI_Q-tsck1wTwk69qHRoASciuz7F-dXRfnaFLqU2b3B_HWJs5mfrJmmTqE6Df94CFdTQsfp4znZA5rWx3Jb3E0o');
+                "
+              ></div>
+            </div>
+          </div>
+        </header>
+        <div class="p-6 md:p-8 max-w-7xl mx-auto w-full flex flex-col gap-8">
+          <!-- Classes Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Class Card 1 -->
+            <div
+              class="bg-white dark:bg-[#1a2332] rounded-xl border border-[#e5e7eb] dark:border-[#2a3441] shadow-sm overflow-hidden hover:shadow-md transition-shadow cursor-pointer group"
+              onclick="window.location.href='videos_clase.html?clase=calculo-diferencial'"
+            >
+              <div
+                class="h-40 bg-cover bg-center relative"
+                data-alt="Math class"
+                style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC6V6yaUyuRkkVoKcnf0j7myrxgka2eCUnZkmEbt1WmBYDftG8-guNH7zK2mm7iFVGyAsaxspVlc11HsydQ001Nlw_gOLQWjdLnA3qc6CcBBnGdgKDTIbhYn4pkIsbHl6_NdRlds5AgXPmrwij5-p11TpS7kgrj0dfBVNvcj5cHOkWrDo8Ez4UMEutDeNw3Pikk56QoZdhvAkWxtKOBNxZDigq0NjExr4glHrJCp2QduApEmiInqEUvjipQDt5KgbzIFy3Z4O-JoL0');"
+              >
+                <div
+                  class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"
+                ></div>
+              </div>
+              <div class="p-5">
+                <div class="flex items-start justify-between mb-3">
+                  <div class="flex-1">
+                    <h3
+                      class="text-lg font-bold text-[#111318] dark:text-white mb-1 group-hover:text-primary transition-colors"
+                    >
+                      Cálculo Diferencial
+                    </h3>
+                    <p class="text-sm text-[#616f89] dark:text-[#9ca3af]">
+                      Prof. Alejandro García
+                    </p>
+                  </div>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border border-orange-200 dark:border-orange-800"
+                  >
+                    <span class="material-symbols-outlined text-sm">video_library</span>
+                    Con videos pendientes
+                  </span>
+                  <span class="text-xs text-[#616f89] dark:text-[#9ca3af]"
+                    >3 videos</span
+                  >
+                </div>
+              </div>
+            </div>
+
+            <!-- Class Card 2 -->
+            <div
+              class="bg-white dark:bg-[#1a2332] rounded-xl border border-[#e5e7eb] dark:border-[#2a3441] shadow-sm overflow-hidden hover:shadow-md transition-shadow cursor-pointer group"
+              onclick="window.location.href='videos_clase.html?clase=historia-arte'"
+            >
+              <div
+                class="h-40 bg-cover bg-center relative"
+                data-alt="History class"
+                style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDFYenbfqYicawuxXSFTXCHW65tPOCkL0VREzyySn74jZp_QYpiJ0buWeamw-6ZEx7lSvLp7zSakjLETfpoxwDTmRKEL1Q13J9V9eN1U7ofchian5WmQbw0kjgR1LcYKHdesBjVIqlzPR3151So4jRjBEirrh-RxnQWaLqGpzE3ZKZ0ik63Eh4LdTt-aDzYQJuDJ_7EmLJc5VLNd-aTEYmGrM-oa0lbuIuO1hqZD39COH0sNvUPM1xJpH6uhJiorPvRvYUbWxktUaE');"
+              >
+                <div
+                  class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"
+                ></div>
+              </div>
+              <div class="p-5">
+                <div class="flex items-start justify-between mb-3">
+                  <div class="flex-1">
+                    <h3
+                      class="text-lg font-bold text-[#111318] dark:text-white mb-1 group-hover:text-primary transition-colors"
+                    >
+                      Historia del Arte Moderno
+                    </h3>
+                    <p class="text-sm text-[#616f89] dark:text-[#9ca3af]">
+                      Dra. Elena Torres
+                    </p>
+                  </div>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600"
+                  >
+                    <span class="material-symbols-outlined text-sm">check_circle</span>
+                    Sin videos pendientes
+                  </span>
+                  <span class="text-xs text-[#616f89] dark:text-[#9ca3af]"
+                    >2 videos</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Modal: Unirse a Clase -->
+    <div
+      id="joinClassModal"
+      class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm"
+    >
+      <div
+        class="bg-white dark:bg-[#1a2332] rounded-xl shadow-2xl max-w-md w-full mx-4"
+      >
+        <div
+          class="px-6 py-4 border-b border-[#e5e7eb] dark:border-[#2a3441] flex items-center justify-between"
+        >
+          <h2 class="text-xl font-bold text-[#111318] dark:text-white">
+            Unirse a una clase
+          </h2>
+          <button
+            onclick="closeModal('joinClassModal')"
+            class="text-[#616f89] hover:text-[#111318] dark:hover:text-white"
+          >
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <div class="p-6 flex flex-col gap-6">
+          <!-- Headline -->
+          <div class="text-center space-y-2">
+            <p class="text-[#616f89] dark:text-[#9ca3af] text-base">
+              Introduce el código proporcionado por tu profesor.
+            </p>
+          </div>
+          <!-- Input Form Section -->
+          <div>
+            <div
+              class="bg-white dark:bg-[#1a2332] border border-[#dbdfe6] dark:border-[#2a3441] rounded-xl p-1 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all duration-200"
+            >
+              <label class="block px-4 pt-3 pb-1">
+                <span
+                  class="text-xs font-bold text-[#616f89] dark:text-[#9ca3af] uppercase tracking-wider"
+                  >Código de clase</span
+                >
+                <input
+                  autocomplete="off"
+                  class="w-full bg-transparent border-none p-0 text-xl font-medium placeholder:text-[#616f89] dark:placeholder:text-[#9ca3af] text-[#111318] dark:text-white focus:ring-0"
+                  placeholder="Ej. X7J-9P2"
+                  type="text"
+                />
+              </label>
+            </div>
+            <!-- Helper Info -->
+            <div class="mt-3 flex items-start gap-2 text-[#616f89] dark:text-[#9ca3af] px-1">
+              <span class="material-symbols-outlined text-[18px] mt-0.5">info</span>
+              <p class="text-sm leading-snug">
+                Usa un código de clase de 5 a 7 caracteres alfanuméricos sin espacios ni
+                símbolos.
+              </p>
+            </div>
+          </div>
+          <!-- Action Buttons -->
+          <div class="flex gap-3 pt-4 border-t border-[#e5e7eb] dark:border-[#2a3441]">
+            <button
+              type="button"
+              onclick="closeModal('joinClassModal')"
+              class="flex-1 px-5 py-2.5 rounded-lg border border-[#dbdfe6] dark:border-[#2a3441] text-[#111318] dark:text-white hover:bg-gray-50 dark:hover:bg-[#2a3441] transition-colors font-medium"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onclick="closeModal('joinClassModal')"
+              class="flex-1 px-5 py-2.5 rounded-lg bg-primary hover:bg-blue-700 text-white font-medium transition-colors"
+            >
+              Unirse
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function openModal(modalId) {
+        document.getElementById(modalId).classList.remove("hidden");
+        document.getElementById(modalId).classList.add("flex");
+        document.body.style.overflow = "hidden";
+      }
+
+      function closeModal(modalId) {
+        document.getElementById(modalId).classList.add("hidden");
+        document.getElementById(modalId).classList.remove("flex");
+        document.body.style.overflow = "auto";
+      }
+    </script>
+  </body>
+</html>
