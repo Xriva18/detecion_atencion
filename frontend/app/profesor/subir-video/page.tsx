@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Header from "@/components/Admin/Header";
 
 // Mock data - En producción esto vendría de una API
@@ -11,6 +12,7 @@ const mockClasses = [
 ];
 
 export default function SubirVideoPage() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -19,12 +21,18 @@ export default function SubirVideoPage() {
     startDate: "",
     endDate: "",
   });
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // TODO: Implementar subida de video
     console.log("Subir video:", formData);
-    alert("Video subido exitosamente (mock)");
+    setIsSuccessModalOpen(true);
+  };
+
+  const handleAccept = () => {
+    setIsSuccessModalOpen(false);
+    router.push("/profesor");
   };
 
   return (
@@ -181,6 +189,39 @@ export default function SubirVideoPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal de éxito */}
+      {isSuccessModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-green-100">
+                  <span className="material-symbols-outlined text-green-600 text-2xl">
+                    check_circle
+                  </span>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-[#111318]">
+                    Video Subido Exitosamente
+                  </h2>
+                </div>
+              </div>
+              <p className="text-[#616f89] mb-6">
+                El video ha sido subido correctamente. El cuestionario se creará automáticamente según el nivel de atención de los estudiantes.
+              </p>
+              <div className="flex justify-end">
+                <button
+                  onClick={handleAccept}
+                  className="px-5 py-2.5 rounded-lg bg-primary hover:bg-blue-700 text-white font-medium transition-colors"
+                >
+                  Aceptar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
