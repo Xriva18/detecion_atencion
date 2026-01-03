@@ -46,6 +46,7 @@ interface StudentVideoResult {
   correctAnswers: number;
   incorrectAnswers: number;
   totalQuestions: number;
+  attentionLevel: "alto" | "medio" | "bajo";
 }
 
 const mockClasses: Class[] = [
@@ -158,6 +159,7 @@ const mockStudentVideoResults: StudentVideoResult[] = [
     correctAnswers: 17,
     incorrectAnswers: 3,
     totalQuestions: 20,
+    attentionLevel: "alto",
   },
   {
     studentId: "s2",
@@ -166,6 +168,7 @@ const mockStudentVideoResults: StudentVideoResult[] = [
     correctAnswers: 18,
     incorrectAnswers: 2,
     totalQuestions: 20,
+    attentionLevel: "alto",
   },
   {
     studentId: "s3",
@@ -174,6 +177,7 @@ const mockStudentVideoResults: StudentVideoResult[] = [
     correctAnswers: 15,
     incorrectAnswers: 5,
     totalQuestions: 20,
+    attentionLevel: "medio",
   },
   {
     studentId: "s4",
@@ -182,6 +186,7 @@ const mockStudentVideoResults: StudentVideoResult[] = [
     correctAnswers: 19,
     incorrectAnswers: 1,
     totalQuestions: 20,
+    attentionLevel: "alto",
   },
   {
     studentId: "s5",
@@ -190,6 +195,7 @@ const mockStudentVideoResults: StudentVideoResult[] = [
     correctAnswers: 14,
     incorrectAnswers: 6,
     totalQuestions: 20,
+    attentionLevel: "bajo",
   },
   {
     studentId: "s1",
@@ -198,6 +204,7 @@ const mockStudentVideoResults: StudentVideoResult[] = [
     correctAnswers: 16,
     incorrectAnswers: 4,
     totalQuestions: 20,
+    attentionLevel: "medio",
   },
   {
     studentId: "s2",
@@ -206,6 +213,7 @@ const mockStudentVideoResults: StudentVideoResult[] = [
     correctAnswers: 18,
     incorrectAnswers: 2,
     totalQuestions: 20,
+    attentionLevel: "alto",
   },
   {
     studentId: "s3",
@@ -214,6 +222,7 @@ const mockStudentVideoResults: StudentVideoResult[] = [
     correctAnswers: 14,
     incorrectAnswers: 6,
     totalQuestions: 20,
+    attentionLevel: "medio",
   },
   {
     studentId: "s4",
@@ -222,6 +231,7 @@ const mockStudentVideoResults: StudentVideoResult[] = [
     correctAnswers: 18,
     incorrectAnswers: 2,
     totalQuestions: 20,
+    attentionLevel: "alto",
   },
   {
     studentId: "s5",
@@ -230,6 +240,7 @@ const mockStudentVideoResults: StudentVideoResult[] = [
     correctAnswers: 13,
     incorrectAnswers: 7,
     totalQuestions: 20,
+    attentionLevel: "bajo",
   },
 ];
 
@@ -238,7 +249,6 @@ export default function GestiónClasesPage() {
   const [classes, setClasses] = useState<Class[]>(mockClasses);
   const [students, setStudents] = useState<Student[]>(mockStudents);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("Todos los estados");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
@@ -286,10 +296,7 @@ export default function GestiónClasesPage() {
     const matchesSearch =
       classItem.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       classItem.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus =
-      filterStatus === "Todos los estados" ||
-      classItem.status === filterStatus;
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
   const handleCreateClass = (classData: Partial<Class>) => {
@@ -332,24 +339,6 @@ export default function GestiónClasesPage() {
     );
   };
 
-  const getStatusBadge = (status: Class["status"]) => {
-    const styles = {
-      Activo: "bg-green-50 text-green-700 border-green-100",
-      Archivado: "bg-gray-100 text-gray-600 border-gray-200",
-      Borrador: "bg-yellow-50 text-yellow-700 border-yellow-100",
-    };
-
-    return (
-      <span
-        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold border ${styles[status]}`}
-      >
-        {status === "Activo" && (
-          <span className="size-1.5 rounded-full bg-green-500"></span>
-        )}
-        {status}
-      </span>
-    );
-  };
 
   const handleClassClick = (classItem: Class) => {
     setSelectedClass(classItem);
@@ -496,6 +485,9 @@ export default function GestiónClasesPage() {
                         Nota
                       </th>
                       <th className="text-left py-3 px-4 text-sm font-semibold text-[#111318]">
+                        Nivel de Atención
+                      </th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-[#111318]">
                         Respuestas Correctas
                       </th>
                       <th className="text-left py-3 px-4 text-sm font-semibold text-[#111318]">
@@ -533,6 +525,19 @@ export default function GestiónClasesPage() {
                             }`}
                           >
                             {result.score}%
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-semibold capitalize ${
+                              result.attentionLevel === "alto"
+                                ? "bg-green-50 text-green-700"
+                                : result.attentionLevel === "medio"
+                                ? "bg-yellow-50 text-yellow-700"
+                                : "bg-red-50 text-red-700"
+                            }`}
+                          >
+                            {result.attentionLevel}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-[#111318]">
@@ -938,21 +943,6 @@ export default function GestiónClasesPage() {
             />
           </label>
           <div className="flex gap-4">
-            <div className="relative min-w-[200px]">
-              <select
-                className="appearance-none flex w-full rounded-lg text-[#111318] focus:outline-none focus:ring-2 focus:ring-primary border border-[#dbdfe6] bg-white h-12 px-4 pr-10 text-base cursor-pointer"
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-              >
-                <option>Todos los estados</option>
-                <option>Activo</option>
-                <option>Archivado</option>
-                <option>Borrador</option>
-              </select>
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[#616f89]">
-                <span className="material-symbols-outlined">expand_more</span>
-              </span>
-            </div>
             <button
               onClick={() => setIsCreateModalOpen(true)}
               className="bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors shadow-lg shadow-primary/30"
@@ -980,9 +970,6 @@ export default function GestiónClasesPage() {
                 ) : (
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-purple-200"></div>
                 )}
-                <div className="absolute top-3 left-3">
-                  {getStatusBadge(classItem.status)}
-                </div>
                 <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button className="bg-white/90 text-gray-700 p-1.5 rounded-lg backdrop-blur-sm hover:bg-white">
                     <span className="material-symbols-outlined text-[20px]">
@@ -1158,7 +1145,7 @@ export default function GestiónClasesPage() {
                           <h4 className="font-medium text-[#111318] mb-3">
                             {result.videoTitle}
                           </h4>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                             <div>
                               <label className="text-xs text-[#616f89]">
                                 Nota
@@ -1173,6 +1160,22 @@ export default function GestiónClasesPage() {
                                 }`}
                               >
                                 {result.score}%
+                              </p>
+                            </div>
+                            <div>
+                              <label className="text-xs text-[#616f89]">
+                                Nivel de Atención
+                              </label>
+                              <p
+                                className={`text-sm font-semibold capitalize ${
+                                  result.attentionLevel === "alto"
+                                    ? "text-green-700"
+                                    : result.attentionLevel === "medio"
+                                    ? "text-yellow-700"
+                                    : "text-red-700"
+                                }`}
+                              >
+                                {result.attentionLevel}
                               </p>
                             </div>
                             <div>

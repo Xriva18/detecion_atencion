@@ -156,18 +156,6 @@ export function EditClassModal({
               }
             />
           </label>
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-[#111318]">Horario</span>
-            <input
-              className="w-full rounded-lg border border-[#dbdfe6] bg-white text-[#111318] h-12 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-              type="text"
-              value={formData.schedule || ""}
-              onChange={(e) =>
-                setFormData({ ...formData, schedule: e.target.value })
-              }
-              placeholder="Ej: Lunes y Miércoles • 10:00 AM - 12:00 PM"
-            />
-          </label>
           <div className="flex gap-3 justify-end pt-4 border-t border-[#e5e7eb]">
             <button
               type="button"
@@ -252,19 +240,6 @@ export function CodeModal({
             </p>
           </div>
           <div className="flex gap-3 justify-end pt-4 border-t border-[#e5e7eb]">
-            <button
-              type="button"
-              onClick={() => {
-                onGenerateNewCode();
-                const newCode =
-                  Math.random().toString(36).substring(2, 5).toUpperCase() +
-                  Math.floor(Math.random() * 1000);
-                setCode(newCode);
-              }}
-              className="px-5 py-2.5 rounded-lg border border-[#dbdfe6] text-[#111318] hover:bg-gray-50 transition-colors font-medium"
-            >
-              Generar Nuevo
-            </button>
             <button
               type="button"
               onClick={onClose}
