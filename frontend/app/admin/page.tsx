@@ -305,13 +305,24 @@ export default function AdminDashboard() {
                   description: "Usuario inactivo eliminado del sistema",
                   time: "Hace 3 horas",
                 },
-              ].map((activity, index) => (
+              ].map((activity, index) => {
+                const colorClasses = {
+                  blue: "bg-blue-100 text-blue-600",
+                  green: "bg-green-100 text-green-600",
+                  yellow: "bg-yellow-100 text-yellow-600",
+                  red: "bg-red-100 text-red-600",
+                  purple: "bg-purple-100 text-purple-600",
+                  orange: "bg-orange-100 text-orange-600",
+                };
+                const activityColorClass = colorClasses[activity.color as keyof typeof colorClasses] || "bg-gray-100 text-gray-600";
+                
+                return (
                 <div
                   key={index}
                   className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors"
                 >
                   <div
-                    className={`bg-${activity.color}-100 text-${activity.color}-600 rounded-full p-2 h-fit`}
+                    className={`${activityColorClass} rounded-full p-2 h-fit`}
                   >
                     <span className="material-symbols-outlined text-[18px]">
                       {activity.icon}
@@ -329,7 +340,8 @@ export default function AdminDashboard() {
                     </span>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         </div>
