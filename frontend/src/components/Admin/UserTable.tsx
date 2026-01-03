@@ -7,7 +7,7 @@ interface User {
   name: string;
   email: string;
   role: "Estudiante" | "Profesor" | "Admin";
-  status: "Activo" | "Inactivo" | "Pendiente";
+  status: "Activo" | "Inactivo";
   lastActivity: string;
   avatar?: string;
   classes?: string[];
@@ -77,13 +77,11 @@ export default function UserTable({
     const styles = {
       Activo: "bg-green-50 text-green-700",
       Inactivo: "bg-gray-100 text-gray-600",
-      Pendiente: "bg-yellow-50 text-yellow-700",
     };
 
     const dotColors = {
       Activo: "bg-green-500",
       Inactivo: "bg-gray-400",
-      Pendiente: "bg-yellow-500",
     };
 
     return (
@@ -165,9 +163,7 @@ export default function UserTable({
                         className={`absolute bottom-0 right-0 size-3 rounded-full border-2 border-white ${
                           user.status === "Activo"
                             ? "bg-green-500"
-                            : user.status === "Inactivo"
-                            ? "bg-gray-400"
-                            : "bg-yellow-500"
+                            : "bg-gray-400"
                         }`}
                       ></div>
                     </div>

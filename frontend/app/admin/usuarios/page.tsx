@@ -16,7 +16,7 @@ interface User {
   name: string;
   email: string;
   role: "Estudiante" | "Profesor" | "Admin";
-  status: "Activo" | "Inactivo" | "Pendiente";
+  status: "Activo" | "Inactivo";
   lastActivity: string;
   avatar?: string;
   classes?: string[];
@@ -63,7 +63,7 @@ const mockUsers: User[] = [
     name: "Lucía P.",
     email: "lucia.p@edu.com",
     role: "Estudiante",
-    status: "Pendiente",
+    status: "Activo",
     lastActivity: "Nunca",
     classes: ["Introducción a la Programación"],
   },
@@ -78,7 +78,8 @@ export default function UsuariosPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] =
+    useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
   // Filtrar usuarios
@@ -88,7 +89,8 @@ export default function UsuariosPage() {
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.id.includes(searchTerm);
     const matchesRole = roleFilter === "Todos" || user.role === roleFilter;
-    const matchesStatus = statusFilter === "Todos" || user.status === statusFilter;
+    const matchesStatus =
+      statusFilter === "Todos" || user.status === statusFilter;
     return matchesSearch && matchesRole && matchesStatus;
   });
 
@@ -125,7 +127,7 @@ export default function UsuariosPage() {
         name: userData.name || "",
         email: userData.email || "",
         role: (userData.role as User["role"]) || "Estudiante",
-        status: (userData.status as User["status"]) || "Pendiente",
+        status: (userData.status as User["status"]) || "Activo",
         lastActivity: "Nunca",
         classes: [],
       };
@@ -160,8 +162,8 @@ export default function UsuariosPage() {
               Gestión de Usuarios
             </h1>
             <p className="text-[#616f89] text-sm font-normal">
-              Crea nuevos perfiles, gestiona permisos y administra el acceso de los
-              usuarios.
+              Crea nuevos perfiles, gestiona permisos y administra el acceso de
+              los usuarios.
             </p>
           </div>
           <button
@@ -179,7 +181,9 @@ export default function UsuariosPage() {
           <div className="w-full md:max-w-md">
             <div className="relative flex items-center w-full h-10 rounded-lg focus-within:ring-2 focus-within:ring-primary overflow-hidden border border-[#dbdfe6] bg-white">
               <div className="grid place-items-center h-full w-10 text-[#616f89]">
-                <span className="material-symbols-outlined text-[20px]">search</span>
+                <span className="material-symbols-outlined text-[20px]">
+                  search
+                </span>
               </div>
               <input
                 className="peer h-full w-full outline-none text-sm text-[#111318] bg-transparent pr-2 placeholder:text-[#9ca3af]"
@@ -215,14 +219,15 @@ export default function UsuariosPage() {
                 <option value="Todos">Estado: Todos</option>
                 <option value="Activo">Estado: Activo</option>
                 <option value="Inactivo">Estado: Inactivo</option>
-                <option value="Pendiente">Estado: Pendiente</option>
               </select>
             </div>
             <button
               className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#dbdfe6] bg-white text-[#616f89] hover:bg-gray-50 transition-colors"
               title="Exportar"
             >
-              <span className="material-symbols-outlined text-[20px]">download</span>
+              <span className="material-symbols-outlined text-[20px]">
+                download
+              </span>
             </button>
           </div>
         </div>
@@ -248,6 +253,7 @@ export default function UsuariosPage() {
       />
 
       <EditUserModal
+        key={selectedUser?.id || "new"}
         isOpen={isEditModalOpen}
         user={selectedUser}
         onClose={() => {
@@ -292,4 +298,3 @@ export default function UsuariosPage() {
     </>
   );
 }
-

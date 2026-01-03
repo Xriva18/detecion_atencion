@@ -1,28 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface User {
   id: string;
   name: string;
   email: string;
   role: "Estudiante" | "Profesor" | "Admin";
-  status: "Activo" | "Inactivo" | "Pendiente";
+  status: "Activo" | "Inactivo";
   lastActivity: string;
   classes?: string[];
-}
-
-interface UserModalsProps {
-  selectedUser: User | null;
-  isAddModalOpen: boolean;
-  isEditModalOpen: boolean;
-  isDeleteModalOpen: boolean;
-  isResetPasswordModalOpen: boolean;
-  isDetailsModalOpen: boolean;
-  onClose: () => void;
-  onSave: (user: Partial<User>) => void;
-  onDelete: () => void;
-  onResetPassword: (password?: string) => void;
 }
 
 export function AddUserModal({
@@ -39,13 +26,26 @@ export function AddUserModal({
     email: "",
     password: "",
     role: "",
-    status: "Pendiente",
+    status: "Activo",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
-    setFormData({ name: "", email: "", password: "", role: "", status: "Pendiente" });
+    onSave({
+      name: formData.name,
+      email: formData.email,
+      role: formData.role as User["role"],
+      status: formData.status as User["status"],
+      // @ts-expect-error - password is not part of User but needed for creation
+      password: formData.password,
+    });
+    setFormData({
+      name: "",
+      email: "",
+      password: "",
+      role: "",
+      status: "Activo",
+    });
     onClose();
   };
 
@@ -79,7 +79,9 @@ export function AddUserModal({
               placeholder="Nombre completo"
               required
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -92,7 +94,9 @@ export function AddUserModal({
               placeholder="correo@edu.com"
               required
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -105,21 +109,24 @@ export function AddUserModal({
               placeholder="••••••••"
               required
               value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, password: e.target.value })
+              }
             />
             <p className="text-xs text-[#616f89]">
-              El usuario deberá cambiar esta contraseña en su primer inicio de sesión.
+              El usuario deberá cambiar esta contraseña en su primer inicio de
+              sesión.
             </p>
           </div>
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-[#111318]">
-              Rol
-            </label>
+            <label className="text-sm font-medium text-[#111318]">Rol</label>
             <select
               className="w-full h-11 rounded-lg border border-[#dbdfe6] bg-white text-[#111318] px-4 focus:border-primary focus:ring-1 focus:ring-primary"
               required
               value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, role: e.target.value })
+              }
             >
               <option value="">Seleccionar rol</option>
               <option value="Estudiante">Estudiante</option>
@@ -159,28 +166,38 @@ export function EditUserModal({
   onClose: () => void;
   onSave: (user: Partial<User>) => void;
 }) {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    role: "",
-    status: "",
-  });
-
-  useEffect(() => {
+  const [formData, setFormData] = useState<{
+    name: string;
+    email: string;
+    role: string;
+    status: string;
+  }>(() => {
     if (user) {
-      setFormData({
+      return {
         name: user.name,
         email: user.email,
         role: user.role,
         status: user.status,
-      });
+      };
     }
-  }, [user]);
+    return {
+      name: "",
+      email: "",
+      role: "",
+      status: "",
+    };
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (user) {
-      onSave({ ...user, ...formData });
+      onSave({
+        ...user,
+        name: formData.name,
+        email: formData.email,
+        role: formData.role as User["role"],
+        status: formData.status as User["status"],
+      });
     }
     onClose();
   };
@@ -194,9 +211,7 @@ export function EditUserModal({
     >
       <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-[#e5e7eb] px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-[#111318]">
-            Editar Usuario
-          </h2>
+          <h2 className="text-xl font-bold text-[#111318]">Editar Usuario</h2>
           <button
             onClick={onClose}
             className="text-[#616f89] hover:text-[#111318]"
@@ -214,7 +229,9 @@ export function EditUserModal({
               className="w-full h-11 rounded-lg border border-[#dbdfe6] bg-white text-[#111318] px-4 focus:border-primary focus:ring-1 focus:ring-primary"
               placeholder="Nombre completo"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -226,17 +243,19 @@ export function EditUserModal({
               className="w-full h-11 rounded-lg border border-[#dbdfe6] bg-white text-[#111318] px-4 focus:border-primary focus:ring-1 focus:ring-primary"
               placeholder="correo@edu.com"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
             />
           </div>
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-[#111318]">
-              Rol
-            </label>
+            <label className="text-sm font-medium text-[#111318]">Rol</label>
             <select
               className="w-full h-11 rounded-lg border border-[#dbdfe6] bg-white text-[#111318] px-4 focus:border-primary focus:ring-1 focus:ring-primary"
               value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, role: e.target.value })
+              }
             >
               <option value="Estudiante">Estudiante</option>
               <option value="Profesor">Profesor</option>
@@ -244,17 +263,16 @@ export function EditUserModal({
             </select>
           </div>
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-[#111318]">
-              Estado
-            </label>
+            <label className="text-sm font-medium text-[#111318]">Estado</label>
             <select
               className="w-full h-11 rounded-lg border border-[#dbdfe6] bg-white text-[#111318] px-4 focus:border-primary focus:ring-1 focus:ring-primary"
               value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, status: e.target.value })
+              }
             >
               <option value="Activo">Activo</option>
               <option value="Inactivo">Inactivo</option>
-              <option value="Pendiente">Pendiente</option>
             </select>
           </div>
           <div className="flex gap-3 justify-end pt-4 border-t border-[#e5e7eb]">
@@ -298,9 +316,7 @@ export function DeleteUserModal({
     >
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4">
         <div className="px-6 py-4 border-b border-[#e5e7eb] flex items-center justify-between">
-          <h2 className="text-xl font-bold text-[#111318]">
-            Eliminar Usuario
-          </h2>
+          <h2 className="text-xl font-bold text-[#111318]">Eliminar Usuario</h2>
           <button
             onClick={onClose}
             className="text-[#616f89] hover:text-[#111318]"
@@ -318,8 +334,8 @@ export function DeleteUserModal({
             </p>
           </div>
           <p className="text-[#616f89]">
-            ¿Estás seguro de que deseas eliminar este usuario? Todos sus datos serán
-            eliminados permanentemente.
+            ¿Estás seguro de que deseas eliminar este usuario? Todos sus datos
+            serán eliminados permanentemente.
           </p>
           <div className="flex gap-3 justify-end pt-4 border-t border-[#e5e7eb]">
             <button
@@ -380,8 +396,9 @@ export function ResetPasswordModal({
         </div>
         <div className="p-6 flex flex-col gap-5">
           <p className="text-[#616f89]">
-            ¿Estás seguro de que deseas restablecer la contraseña de este usuario? Se
-            enviará una nueva contraseña temporal a su correo electrónico.
+            ¿Estás seguro de que deseas restablecer la contraseña de este
+            usuario? Se enviará una nueva contraseña temporal a su correo
+            electrónico.
           </p>
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-[#111318]">
@@ -439,10 +456,8 @@ export function UserDetailsModal({
 
   const getRoleBadge = (role: User["role"]) => {
     const styles = {
-      Estudiante:
-        "bg-blue-50 text-blue-700 border-blue-100",
-      Profesor:
-        "bg-purple-50 text-purple-700 border-purple-100",
+      Estudiante: "bg-blue-50 text-blue-700 border-blue-100",
+      Profesor: "bg-purple-50 text-purple-700 border-purple-100",
       Admin: "bg-indigo-50 text-indigo-700 border-indigo-100",
     };
 
@@ -466,18 +481,13 @@ export function UserDetailsModal({
 
   const getStatusBadge = (status: User["status"]) => {
     const styles = {
-      Activo:
-        "bg-green-50 text-green-700",
-      Inactivo:
-        "bg-gray-100 text-gray-600",
-      Pendiente:
-        "bg-yellow-50 text-yellow-700",
+      Activo: "bg-green-50 text-green-700",
+      Inactivo: "bg-gray-100 text-gray-600",
     };
 
     const dotColors = {
       Activo: "bg-green-500",
       Inactivo: "bg-gray-400",
-      Pendiente: "bg-yellow-500",
     };
 
     return (
@@ -536,7 +546,9 @@ export function UserDetailsModal({
           {/* Classes Section */}
           <div>
             <h4 className="text-lg font-bold text-[#111318] mb-4 flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary">class</span>
+              <span className="material-symbols-outlined text-primary">
+                class
+              </span>
               <span>
                 {isAdmin
                   ? "Información del Administrador"
@@ -566,7 +578,9 @@ export function UserDetailsModal({
                         {className}
                       </p>
                       <p className="text-xs text-[#616f89]">
-                        {isProfessor ? "Profesor a cargo" : "Estudiante inscrito"}
+                        {isProfessor
+                          ? "Profesor a cargo"
+                          : "Estudiante inscrito"}
                       </p>
                     </div>
                   </div>
@@ -585,17 +599,13 @@ export function UserDetailsModal({
           {/* Additional Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-[#e5e7eb]">
             <div>
-              <p className="text-xs text-[#616f89] mb-1">
-                Fecha de Registro
-              </p>
+              <p className="text-xs text-[#616f89] mb-1">Fecha de Registro</p>
               <p className="text-sm font-medium text-[#111318]">
                 15 de Enero, 2024
               </p>
             </div>
             <div>
-              <p className="text-xs text-[#616f89] mb-1">
-                Última Actividad
-              </p>
+              <p className="text-xs text-[#616f89] mb-1">Última Actividad</p>
               <p className="text-sm font-medium text-[#111318]">
                 {user.lastActivity}
               </p>
@@ -626,4 +636,3 @@ export function UserDetailsModal({
     </div>
   );
 }
-
