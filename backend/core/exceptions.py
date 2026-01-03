@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
+import sys
 
 
 def setup_exception_handlers(app: FastAPI) -> None:
@@ -15,7 +16,14 @@ def setup_exception_handlers(app: FastAPI) -> None:
         """
         Manejador general de excepciones.
         Captura cualquier excepción no manejada y retorna una respuesta JSON.
+        
+        Nota: Excluye excepciones del sistema como KeyboardInterrupt y SystemExit
+        que deben propagarse normalmente.
         """
+        # Permitir que las excepciones del sistema se propaguen normalmente
+        if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+            raise exc
+        
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={
