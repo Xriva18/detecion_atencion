@@ -14,7 +14,7 @@ const mockActiveClasses = [
   {
     id: "1",
     name: "Matemáticas Avanzadas I",
-    schedule: "Lunes y Miércoles • 10:00 AM - 12:00 PM",
+    createdDate: "2024-01-15",
     status: "En curso",
     students: 32,
     videos: 12,
@@ -22,7 +22,7 @@ const mockActiveClasses = [
   {
     id: "2",
     name: "Química Orgánica",
-    schedule: "Martes y Jueves • 08:00 AM - 10:00 AM",
+    createdDate: "2024-02-01",
     status: "En curso",
     students: 26,
     videos: 8,
@@ -30,7 +30,7 @@ const mockActiveClasses = [
   {
     id: "3",
     name: "Programación Básica",
-    schedule: "Viernes • 02:00 PM - 05:00 PM",
+    createdDate: "2024-02-10",
     status: "Próximo",
     students: 42,
     videos: 5,
@@ -156,8 +156,21 @@ export default function ProfesorDashboard() {
                     <h3 className="text-lg font-bold text-[#111318] group-hover:text-primary transition-colors">
                       {classItem.name}
                     </h3>
-                    <p className="text-sm text-[#616f89] mt-1">
-                      {classItem.schedule}
+                    <p className="text-sm text-[#616f89] mt-1 flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[16px]">
+                        calendar_today
+                      </span>
+                      <span>
+                        Creada:{" "}
+                        {new Date(classItem.createdDate).toLocaleDateString(
+                          "es-ES",
+                          {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          }
+                        )}
+                      </span>
                     </p>
                   </div>
                   <span

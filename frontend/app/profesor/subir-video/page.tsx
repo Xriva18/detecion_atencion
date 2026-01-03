@@ -16,8 +16,8 @@ export default function SubirVideoPage() {
     description: "",
     classId: "",
     videoType: "lecture" as "lecture" | "evaluation",
-    adaptiveQuestions: false,
-    finalQuiz: false,
+    startDate: "",
+    endDate: "",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -31,7 +31,7 @@ export default function SubirVideoPage() {
     <>
       <Header
         title="Gestión de Videos"
-        subtitle="Sube videos, crea preguntas adaptativas y cuestionarios finales"
+        subtitle="Sube videos y configura su disponibilidad"
         user={{
           name: "Prof. Carlos Ruiz",
           email: "carlos.ruiz@edu.com",
@@ -39,13 +39,17 @@ export default function SubirVideoPage() {
         }}
       />
       <div className="p-6 md:p-8 max-w-7xl mx-auto w-full flex flex-col gap-8">
-        {/* Paso 1: Subir Video */}
         <div className="flex flex-col gap-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="size-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm">
-              1
+          {/* Nota informativa */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+            <span className="material-symbols-outlined text-blue-600 text-xl">
+              info
+            </span>
+            <div className="flex-1">
+              <p className="text-sm text-blue-900 font-medium">
+                Nota: El cuestionario se creará automáticamente según el nivel de atención prestada por el estudiante durante la reproducción del video.
+              </p>
             </div>
-            <h2 className="text-2xl font-bold text-[#111318]">Subir Video</h2>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -133,38 +137,34 @@ export default function SubirVideoPage() {
                       ))}
                     </select>
                   </label>
-                  <div className="flex flex-col gap-4">
-                    <label className="flex items-center gap-3 cursor-pointer">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label className="flex flex-col gap-2">
+                      <span className="text-[#111318] text-sm font-medium">
+                        Fecha de Inicio
+                      </span>
                       <input
-                        type="checkbox"
-                        className="rounded border-gray-300 text-primary focus:ring-primary"
-                        checked={formData.adaptiveQuestions}
+                        type="datetime-local"
+                        className="w-full rounded-lg border border-[#dbdfe6] bg-white text-[#111318] h-12 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                        required
+                        value={formData.startDate}
                         onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            adaptiveQuestions: e.target.checked,
-                          })
+                          setFormData({ ...formData, startDate: e.target.value })
                         }
                       />
-                      <span className="text-sm text-[#111318]">
-                        Incluir preguntas adaptativas durante el video
-                      </span>
                     </label>
-                    <label className="flex items-center gap-3 cursor-pointer">
+                    <label className="flex flex-col gap-2">
+                      <span className="text-[#111318] text-sm font-medium">
+                        Fecha de Fin
+                      </span>
                       <input
-                        type="checkbox"
-                        className="rounded border-gray-300 text-primary focus:ring-primary"
-                        checked={formData.finalQuiz}
+                        type="datetime-local"
+                        className="w-full rounded-lg border border-[#dbdfe6] bg-white text-[#111318] h-12 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                        required
+                        value={formData.endDate}
                         onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            finalQuiz: e.target.checked,
-                          })
+                          setFormData({ ...formData, endDate: e.target.value })
                         }
                       />
-                      <span className="text-sm text-[#111318]">
-                        Agregar cuestionario final
-                      </span>
                     </label>
                   </div>
                   <div className="flex gap-3 justify-end pt-4 border-t border-[#e5e7eb]">
