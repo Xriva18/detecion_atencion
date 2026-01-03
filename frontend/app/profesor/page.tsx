@@ -7,8 +7,7 @@ import Link from "next/link";
 const mockStats = {
   activeClasses: 8,
   enrolledStudents: 142,
-  pendingEvaluations: 12,
-  averageGrade: 8.4,
+  totalVideos: 35,
 };
 
 const mockActiveClasses = [
@@ -80,7 +79,7 @@ export default function ProfesorDashboard() {
       <div className="p-6 md:p-8 max-w-7xl mx-auto w-full flex flex-col gap-8">
         {/* Stats Grid */}
         <section aria-label="Estadísticas">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Stat Card 1 */}
             <div className="bg-white rounded-xl p-5 border border-[#e5e7eb] shadow-sm flex flex-col gap-4 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between">
@@ -117,31 +116,15 @@ export default function ProfesorDashboard() {
             <div className="bg-white rounded-xl p-5 border border-[#e5e7eb] shadow-sm flex flex-col gap-4 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between">
                 <div className="bg-amber-100 p-2.5 rounded-lg text-amber-600">
-                  <span className="material-symbols-outlined">assignment</span>
+                  <span className="material-symbols-outlined">
+                    video_library
+                  </span>
                 </div>
               </div>
               <div>
-                <p className="text-[#616f89] text-sm font-medium">
-                  Evaluaciones Pendientes
-                </p>
+                <p className="text-[#616f89] text-sm font-medium">Videos</p>
                 <h3 className="text-[#111318] text-2xl font-bold mt-1">
-                  {mockStats.pendingEvaluations}
-                </h3>
-              </div>
-            </div>
-            {/* Stat Card 4 */}
-            <div className="bg-white rounded-xl p-5 border border-[#e5e7eb] shadow-sm flex flex-col gap-4 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between">
-                <div className="bg-green-100 p-2.5 rounded-lg text-green-600">
-                  <span className="material-symbols-outlined">grade</span>
-                </div>
-              </div>
-              <div>
-                <p className="text-[#616f89] text-sm font-medium">
-                  Promedio General
-                </p>
-                <h3 className="text-[#111318] text-2xl font-bold mt-1">
-                  {mockStats.averageGrade}
+                  {mockStats.totalVideos}
                 </h3>
               </div>
             </div>
@@ -212,12 +195,6 @@ export default function ProfesorDashboard() {
               <h2 className="text-lg font-bold text-[#111318]">
                 Últimas Evaluaciones
               </h2>
-              <Link
-                href="/profesor/resultados"
-                className="text-sm font-medium text-primary hover:text-blue-700"
-              >
-                Ver reporte completo
-              </Link>
             </div>
             <div className="space-y-4">
               {mockRecentEvaluations.map((evaluation) => (
@@ -241,7 +218,9 @@ export default function ProfesorDashboard() {
                       <h4 className="text-sm font-semibold text-[#111318]">
                         {evaluation.name}
                       </h4>
-                      <p className="text-xs text-[#616f89]">{evaluation.date}</p>
+                      <p className="text-xs text-[#616f89]">
+                        {evaluation.date}
+                      </p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -259,4 +238,3 @@ export default function ProfesorDashboard() {
     </>
   );
 }
-

@@ -22,11 +22,6 @@ export default function ProfesorSidebar() {
       icon: "video_library",
       label: "Videos",
     },
-    {
-      href: "/profesor/resultados",
-      icon: "analytics",
-      label: "Reportes de Resultados",
-    },
   ];
 
   return (
@@ -50,8 +45,13 @@ export default function ProfesorSidebar() {
         {/* Navigation */}
         <nav className="flex flex-col gap-2 mt-4 flex-1">
           {navItems.map((item) => {
+            // Para el dashboard, solo activo si es exactamente "/profesor"
+            // Para otras rutas, activo si coincide exactamente o empieza con la ruta + "/"
             const isActive =
-              pathname === item.href || pathname.startsWith(item.href + "/");
+              item.href === "/profesor"
+                ? pathname === "/profesor"
+                : pathname === item.href ||
+                  pathname.startsWith(item.href + "/");
             return (
               <Link
                 key={item.href}
