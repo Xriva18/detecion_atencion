@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface Class {
   id: string;
@@ -110,8 +110,38 @@ export function EditClassModal({
   onSave: (classData: Class) => void;
 }) {
   const [formData, setFormData] = useState<Class | null>(classItem);
+  const [imagePreview, setImagePreview] = useState<string | null>(
+    classItem?.imageUrl || null
+  );
+
+  // Actualizar el estado cuando cambie classItem
+  useEffect(() => {
+    if (classItem) {
+      setFormData(classItem);
+      setImagePreview(classItem.imageUrl || null);
+    }
+  }, [classItem]);
 
   if (!isOpen || !formData) return null;
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Crear URL de vista previa
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        setImagePreview(result);
+        setFormData({ ...formData, imageUrl: result });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImagePreview(null);
+    setFormData({ ...formData, imageUrl: undefined });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,6 +165,53 @@ export function EditClassModal({
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-5">
+          {/* Campo de Imagen */}
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-[#111318]">
+              Imagen de la Clase
+            </span>
+            <div className="flex flex-col gap-3">
+              {imagePreview && (
+                <div className="relative w-full h-48 rounded-lg overflow-hidden border border-[#e5e7eb]">
+                  <img
+                    src={imagePreview}
+                    alt="Vista previa"
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-colors"
+                    title="Eliminar imagen"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      delete
+                    </span>
+                  </button>
+                </div>
+              )}
+              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-primary/30 rounded-lg bg-primary/5 hover:bg-primary/10 transition-colors cursor-pointer">
+                <div className="flex flex-col items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-3xl">
+                    cloud_upload
+                  </span>
+                  <span className="text-sm text-[#111318] font-medium">
+                    {imagePreview ? "Cambiar imagen" : "Subir imagen"}
+                  </span>
+                  <span className="text-xs text-[#616f89]">
+                    PNG, JPG, WEBP (Max 5MB)
+                  </span>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
+
           <label className="flex flex-col gap-2">
             <span className="text-sm font-medium text-[#111318]">
               Nombre de la Clase
