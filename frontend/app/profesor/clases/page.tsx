@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Header from "@/components/Admin/Header";
 import {
   CreateClassModal,
@@ -233,6 +234,7 @@ const mockStudentVideoResults: StudentVideoResult[] = [
 ];
 
 export default function GestiónClasesPage() {
+  const searchParams = useSearchParams();
   const [classes, setClasses] = useState<Class[]>(mockClasses);
   const [students, setStudents] = useState<Student[]>(mockStudents);
   const [searchTerm, setSearchTerm] = useState("");
@@ -248,6 +250,37 @@ export default function GestiónClasesPage() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [isViewStudentModalOpen, setIsViewStudentModalOpen] = useState(false);
   const [isDeleteStudentModalOpen, setIsDeleteStudentModalOpen] = useState(false);
+
+  // Manejar parámetros de URL para navegación directa
+  useEffect(() => {
+    const classId = searchParams.get("classId");
+    const videoId = searchParams.get("videoId");
+
+    if (classId) {
+      const classItem = mockClasses.find((c) => c.id === classId);
+      if (classItem) {
+        setSelectedClass(classItem);
+        if (videoId) {
+          const video = mockVideos.find((v) => v.id === videoId && v.classId === classId);
+          if (video) {
+            setSelectedVideo(video);
+            setViewMode("videoResults");
+          } else {
+            setViewMode("detail");
+            setActiveTab("videos");
+          }
+        } else {
+          setViewMode("detail");
+          setActiveTab("videos");
+        }
+      }
+    } else {
+      // Si no hay classId en la URL, volver a la vista de lista
+      setViewMode("list");
+      setSelectedClass(null);
+      setSelectedVideo(null);
+    }
+  }, [searchParams]);
 
   const filteredClasses = classes.filter((classItem) => {
     const matchesSearch =
