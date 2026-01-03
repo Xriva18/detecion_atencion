@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 
 interface Class {
   id: string;
@@ -44,7 +45,9 @@ export function CreateClassModal({
     >
       <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-[#e5e7eb] flex items-center justify-between">
-          <h2 className="text-xl font-bold text-[#111318]">Crear Nueva Clase</h2>
+          <h2 className="text-xl font-bold text-[#111318]">
+            Crear Nueva Clase
+          </h2>
           <button
             onClick={onClose}
             className="text-[#616f89] hover:text-[#111318]"
@@ -63,11 +66,15 @@ export function CreateClassModal({
               type="text"
               required
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
             />
           </label>
           <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-[#111318]">Descripción</span>
+            <span className="text-sm font-medium text-[#111318]">
+              Descripción
+            </span>
             <textarea
               className="w-full rounded-lg border border-[#dbdfe6] bg-white text-[#111318] min-h-[100px] p-4 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all resize-none"
               placeholder="Describe el contenido y objetivos de la clase..."
@@ -114,15 +121,16 @@ export function EditClassModal({
     classItem?.imageUrl || null
   );
 
-  // Actualizar el estado cuando cambie classItem
+  // Actualizar el estado cuando cambie classItem o isOpen
   useEffect(() => {
-    if (classItem) {
-      setFormData(classItem);
+    if (isOpen && classItem) {
+      setFormData({ ...classItem });
       setImagePreview(classItem.imageUrl || null);
     }
-  }, [classItem]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, classItem?.id]);
 
-  if (!isOpen || !formData) return null;
+  if (!isOpen || !formData || !classItem) return null;
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -173,15 +181,17 @@ export function EditClassModal({
             <div className="flex flex-col gap-3">
               {imagePreview && (
                 <div className="relative w-full h-48 rounded-lg overflow-hidden border border-[#e5e7eb]">
-                  <img
+                  <Image
                     src={imagePreview}
                     alt="Vista previa"
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
+                    unoptimized
                   />
                   <button
                     type="button"
                     onClick={handleRemoveImage}
-                    className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-colors"
+                    className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-colors z-10"
                     title="Eliminar imagen"
                   >
                     <span className="material-symbols-outlined text-[18px]">
@@ -220,11 +230,15 @@ export function EditClassModal({
               className="w-full rounded-lg border border-[#dbdfe6] bg-white text-[#111318] h-12 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
               type="text"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
             />
           </label>
           <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-[#111318]">Descripción</span>
+            <span className="text-sm font-medium text-[#111318]">
+              Descripción
+            </span>
             <textarea
               className="w-full rounded-lg border border-[#dbdfe6] bg-white text-[#111318] min-h-[100px] p-4 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all resize-none"
               value={formData.description}
@@ -258,14 +272,12 @@ export function CodeModal({
   isOpen,
   onClose,
   classItem,
-  onGenerateNewCode,
 }: {
   isOpen: boolean;
   onClose: () => void;
   classItem: Class | null;
-  onGenerateNewCode: () => void;
 }) {
-  const [code, setCode] = useState(classItem?.accessCode || "ABC123");
+  const code = classItem?.accessCode || "ABC123";
 
   if (!isOpen || !classItem) return null;
 
@@ -313,7 +325,8 @@ export function CodeModal({
               </button>
             </div>
             <p className="text-xs text-[#616f89] mt-4">
-              Comparte este código con tus estudiantes para que se unan a la clase.
+              Comparte este código con tus estudiantes para que se unan a la
+              clase.
             </p>
           </div>
           <div className="flex gap-3 justify-end pt-4 border-t border-[#e5e7eb]">
@@ -394,4 +407,3 @@ export function DeleteClassModal({
     </div>
   );
 }
-

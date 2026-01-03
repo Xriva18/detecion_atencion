@@ -57,9 +57,6 @@ export default function Header({
             </span>
             <span className="text-[10px] text-[#616f89]">{displayRole}</span>
           </div>
-          <span className="material-symbols-outlined text-[#616f89] text-[18px]">
-            expand_more
-          </span>
         </div>
       </div>
     </header>
