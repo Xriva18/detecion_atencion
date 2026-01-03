@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, Suspense } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { findUserByEmailOrUsername } from "@/data/mockUsers";
 
@@ -103,10 +104,13 @@ function TwoAuthForm() {
       <div className="relative hidden md:flex md:w-1/2 lg:w-5/12 xl:w-1/3 flex-col justify-between bg-primary overflow-hidden">
         {/* Background Image */}
         <div className="absolute inset-0 z-0">
-          <img
+          <Image
             alt="Modern university campus building with students walking"
             className="h-full w-full object-cover opacity-40 mix-blend-overlay"
             src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKsQrFNP4SMuMPTy2NZu0bdz6gmLRqGYKP5jJDFULm7mkol3UGt7j2nv-peCHo6IK63zd36RHa60IwsF-aot0FtwAESzrtmeok4Nrd1Ria9_JnFD3OeRYupIsyjyzqPvZm7lSugsjrbBsjhrs5_7iiOms-cCKUh02MwoYqEXTi2zFUZtKvnF8jnWF_xRPWOE_bWd20gP_VJn1W5Ko9KEouq09ur6GJftD3tIbv-XRYCKNfmTJj8GX5W0XKS11dmYQ6QN0P_PHXmXg"
+            fill
+            sizes="100vw"
+            unoptimized
           />
           <div className="absolute inset-0 bg-gradient-to-b from-primary/80 to-primary/90 mix-blend-multiply"></div>
         </div>
@@ -123,25 +127,34 @@ function TwoAuthForm() {
           </div>
           <div className="mb-12">
             <blockquote className="text-2xl font-medium text-white leading-relaxed mb-6">
-              "La seguridad es fundamental. Protege tu cuenta con autenticación
-              de dos factores."
+              &ldquo;La seguridad es fundamental. Protege tu cuenta con autenticación
+              de dos factores.&rdquo;
             </blockquote>
             <div className="flex items-center gap-4">
               <div className="flex -space-x-3">
-                <img
+                <Image
                   alt="Student profile"
-                  className="w-10 h-10 rounded-full border-2 border-primary object-cover"
+                  className="rounded-full border-2 border-primary object-cover"
                   src="https://lh3.googleusercontent.com/aida-public/AB6AXuAqT_a3tdeMJa4tRJMWim1m_su-lwHvsGDt4S33bNtbtreHea1ONkPxAAsxSy0AgfJm1gKiiU5eDBJAlqcuBl84AgxzxyBe-FTMUw1ZjT2jEGE09OS9Vz5hZ-f8bSVvbwnEEu0RuwIsXQOgDlNkdncp3wuSoljTR0F4FHLLnkIIZRGi3NL-84BYuZd18MfxE7Vdd-8QehIqYrwxlWEjEaBlRsG4AEnq1MV8IcS7g8BWDWk2UdXRlflKCP4Y5gIQ2Zx5EP16QsbDj48"
+                  width={40}
+                  height={40}
+                  unoptimized
                 />
-                <img
+                <Image
                   alt="Professor profile"
-                  className="w-10 h-10 rounded-full border-2 border-primary object-cover"
+                  className="rounded-full border-2 border-primary object-cover"
                   src="https://lh3.googleusercontent.com/aida-public/AB6AXuBEofLcQxxu8BfmSrPjmaVvVpQIGtV8hbLae937EIww8DDqk9WNf7RKByda9o7c3woUpVCT1WvOfbLFabhUyeuHjXvQ0z-z9uVKM8RQf9u9NTI1XyQV69Od6cHvbFNvaP8HhBwG2JZzAyBbDHV4QXKoQSH6NlH_haqRKQu5mBw7KnqhmHxf24wQyoNtPnHs3unfh-yItyjqVGr3LLSIPevrcrgihP9RU9-GKR0t04I6sEMVJNcw1EmzJi6Ych2cUHwwxM_hpRlrSb4"
+                  width={40}
+                  height={40}
+                  unoptimized
                 />
-                <img
+                <Image
                   alt="Admin profile"
-                  className="w-10 h-10 rounded-full border-2 border-primary object-cover"
+                  className="rounded-full border-2 border-primary object-cover"
                   src="https://lh3.googleusercontent.com/aida-public/AB6AXuAFRk9zRo-tJ8tpmjaYnoQhpJ-6asQg3fcuIa0TQUYufe9fEg9RtoB8_BYnfIg__8qHsXBXYYGrQb7yt0DeIaxOK-YgRE_vFnJvXjUtA5_CktP9qcsv8za47nHRBrFl3kN9BItQ_Ejg_n8x5bf3_0TfHUiNDX_GpFUCbnj8sl2xIreaSF2LKDWVCSpKe-D17rOKW8M2Z1nLqfSEfCm_ZFs550jUiFimoo5R6PvqjEDd2zsckV1oNBSyq3BP_Xw2T3x-EXGHNXBRdXk"
+                  width={40}
+                  height={40}
+                  unoptimized
                 />
               </div>
             </div>
