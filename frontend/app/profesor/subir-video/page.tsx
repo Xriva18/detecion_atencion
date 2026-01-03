@@ -20,6 +20,7 @@ export default function SubirVideoPage() {
     videoType: "lecture" as "lecture" | "evaluation",
     startDate: "",
     endDate: "",
+    numberOfQuestions: 10,
   });
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
@@ -175,6 +176,81 @@ export default function SubirVideoPage() {
                       />
                     </label>
                   </div>
+                  <label className="flex flex-col gap-2">
+                    <span className="text-[#111318] text-sm font-medium">
+                      Número de Preguntas a Generar
+                    </span>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            numberOfQuestions: Math.max(5, formData.numberOfQuestions - 5),
+                          })
+                        }
+                        disabled={formData.numberOfQuestions <= 5}
+                        className="flex items-center justify-center w-10 h-12 rounded-lg border border-[#dbdfe6] bg-white text-[#111318] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+                      >
+                        <span className="material-symbols-outlined">remove</span>
+                      </button>
+                      <input
+                        type="number"
+                        min="5"
+                        max="20"
+                        step="5"
+                        className="flex-1 rounded-lg border border-[#dbdfe6] bg-white text-[#111318] h-12 px-4 text-center focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        value={formData.numberOfQuestions}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value);
+                          if (!isNaN(value)) {
+                            // Redondear al múltiplo de 5 más cercano
+                            const rounded = Math.round(value / 5) * 5;
+                            const clampedValue = Math.max(5, Math.min(20, rounded));
+                            setFormData({
+                              ...formData,
+                              numberOfQuestions: clampedValue,
+                            });
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const value = parseInt(e.target.value);
+                          if (isNaN(value) || value < 5) {
+                            setFormData({
+                              ...formData,
+                              numberOfQuestions: 5,
+                            });
+                          } else if (value > 20) {
+                            setFormData({
+                              ...formData,
+                              numberOfQuestions: 20,
+                            });
+                          } else {
+                            // Asegurar que sea múltiplo de 5
+                            const rounded = Math.round(value / 5) * 5;
+                            const clampedValue = Math.max(5, Math.min(20, rounded));
+                            setFormData({
+                              ...formData,
+                              numberOfQuestions: clampedValue,
+                            });
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            numberOfQuestions: Math.min(20, formData.numberOfQuestions + 5),
+                          })
+                        }
+                        disabled={formData.numberOfQuestions >= 20}
+                        className="flex items-center justify-center w-10 h-12 rounded-lg border border-[#dbdfe6] bg-white text-[#111318] hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+                      >
+                        <span className="material-symbols-outlined">add</span>
+                      </button>
+                    </div>
+                  </label>
                   <div className="flex gap-3 justify-end pt-4 border-t border-[#e5e7eb]">
                     <button
                       type="submit"
