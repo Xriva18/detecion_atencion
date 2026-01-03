@@ -63,11 +63,11 @@ export default function SubirVideoPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Upload Dropzone */}
             <div className="lg:col-span-4 flex flex-col">
-              <div className="bg-white rounded-xl shadow-sm border border-[#e5e7eb] p-6 flex-1 flex flex-col justify-center">
+              <div className="bg-white rounded-xl shadow-sm border border-[#e5e7eb] p-6 flex-1 flex flex-col">
                 <h3 className="text-[#111318] text-lg font-bold mb-4">
                   Subir Nuevo Video
                 </h3>
-                <div className="flex flex-col items-center gap-6 rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 px-6 py-10 transition-colors hover:bg-primary/10 group cursor-pointer">
+                <div className="flex flex-col items-center justify-center gap-6 rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 px-6 flex-1 transition-colors hover:bg-primary/10 group cursor-pointer">
                   <div className="flex flex-col items-center gap-2 text-center">
                     <div className="size-14 rounded-full bg-primary/20 flex items-center justify-center text-primary mb-2 group-hover:scale-110 transition-transform">
                       <span className="material-symbols-outlined text-3xl">
