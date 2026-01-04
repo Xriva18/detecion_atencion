@@ -1,0 +1,206 @@
+"""
+Endpoints de autenticación usando Supabase.
+"""
+from fastapi import APIRouter, HTTPException, status
+from supabase import Client
+
+from models.schemas import (
+    RegisterRequest,
+    RegisterResponse,
+    LoginRequest,
+    LoginResponse,
+    UserResponse,
+)
+from utils.supabase_client import get_supabase_client
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+@router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
+async def register(request: RegisterRequest):
+    """
+    Registra un nuevo usuario en Supabase Auth y crea su perfil en public.profiles.
+    
+    Args:
+        request: Datos del usuario a registrar (email, password, full_name, role)
+        
+    Returns:
+        RegisterResponse: Datos del usuario creado
+        
+    Raises:
+        HTTPException: Si el usuario ya existe, datos inválidos, o error en la creación
+    """
+    # Validar que el role sea válido (1, 2 o 3)
+    if request.role not in [1, 2, 3]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El role debe ser 1, 2 o 3"
+        )
+    
+    supabase: Client = get_supabase_client()
+    
+    try:
+        # Crear usuario en Supabase Auth
+        auth_response = supabase.auth.sign_up({
+            "email": request.email,
+            "password": request.password,
+        })
+        
+        # Verificar si se creó el usuario correctamente
+        if not auth_response.user:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error al crear el usuario en Supabase Auth"
+            )
+        
+        user_id = auth_response.user.id
+        
+        # Crear perfil en public.profiles
+        profile_data = {
+            "user_id": user_id,
+            "full_name": request.full_name,
+            "role": request.role,
+            "email": request.email,
+            "confirmed": False,  # Se actualizará automáticamente cuando se confirme el email
+        }
+        
+        profile_response = supabase.table("profiles").insert(profile_data).execute()
+        
+        # Verificar si se creó el perfil correctamente
+        if not profile_response.data or len(profile_response.data) == 0:
+            # Si falla la creación del perfil, intentar eliminar el usuario creado
+            # (opcional, puede manejarse manualmente)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error al crear el perfil del usuario"
+            )
+        
+        created_profile = profile_response.data[0]
+        
+        # Crear respuesta con los datos del usuario
+        user_response = UserResponse(
+            user_id=str(created_profile["user_id"]),
+            email=created_profile["email"],
+            full_name=created_profile["full_name"],
+            role=created_profile["role"],
+            confirmed=created_profile["confirmed"],
+        )
+        
+        return RegisterResponse(
+            message="Usuario registrado exitosamente",
+            user=user_response
+        )
+        
+    except HTTPException:
+        # Re-lanzar HTTPException sin modificar
+        raise
+    except Exception as e:
+        # Manejar errores de Supabase (usuario duplicado, etc.)
+        error_message = str(e)
+        
+        # Detectar errores comunes de Supabase
+        if "User already registered" in error_message or "already registered" in error_message.lower():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El usuario con este email ya está registrado"
+            )
+        elif "Invalid email" in error_message or "invalid" in error_message.lower():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El email proporcionado no es válido"
+            )
+        elif "Password" in error_message and ("weak" in error_message.lower() or "invalid" in error_message.lower()):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La contraseña no cumple con los requisitos de seguridad"
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error al registrar el usuario: {error_message}"
+            )
+
+
+@router.post("/login", response_model=LoginResponse)
+async def login(request: LoginRequest):
+    """
+    Autentica un usuario y retorna el token de sesión junto con sus datos.
+    
+    Args:
+        request: Credenciales del usuario (email, password)
+        
+    Returns:
+        LoginResponse: Token de acceso y datos del usuario
+        
+    Raises:
+        HTTPException: Si las credenciales son inválidas o el usuario no existe
+    """
+    supabase: Client = get_supabase_client()
+    
+    try:
+        # Autenticar usuario con Supabase Auth
+        auth_response = supabase.auth.sign_in_with_password({
+            "email": request.email,
+            "password": request.password,
+        })
+        
+        # Verificar si la autenticación fue exitosa
+        if not auth_response.user or not auth_response.session:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Credenciales inválidas"
+            )
+        
+        user_id = auth_response.user.id
+        access_token = auth_response.session.access_token
+        
+        # Obtener perfil del usuario desde public.profiles
+        profile_response = supabase.table("profiles").select("*").eq("user_id", user_id).execute()
+        
+        if not profile_response.data or len(profile_response.data) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Perfil de usuario no encontrado"
+            )
+        
+        profile = profile_response.data[0]
+        
+        # Crear respuesta con los datos del usuario
+        user_response = UserResponse(
+            user_id=str(profile["user_id"]),
+            email=profile["email"],
+            full_name=profile["full_name"],
+            role=profile["role"],
+            confirmed=profile["confirmed"],
+        )
+        
+        return LoginResponse(
+            access_token=access_token,
+            token_type="bearer",
+            user=user_response
+        )
+        
+    except HTTPException:
+        # Re-lanzar HTTPException sin modificar
+        raise
+    except Exception as e:
+        # Manejar errores de autenticación
+        error_message = str(e)
+        
+        # Detectar errores comunes de Supabase Auth
+        if "Invalid login credentials" in error_message or "invalid" in error_message.lower():
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Email o contraseña incorrectos"
+            )
+        elif "Email not confirmed" in error_message:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="El email no ha sido confirmado. Por favor, verifica tu correo electrónico."
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error al autenticar el usuario: {error_message}"
+            )
+
