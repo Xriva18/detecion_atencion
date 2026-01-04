@@ -17,11 +17,6 @@ export default function EstudianteSidebar() {
       icon: "group_add",
       label: "Mis Clases",
     },
-    {
-      href: "/estudiante/resultados",
-      icon: "analytics",
-      label: "Resultados",
-    },
   ];
 
   return (

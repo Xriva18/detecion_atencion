@@ -152,9 +152,9 @@ export default function ResultadosPage() {
                     <td className="px-6 py-4 text-right">
                       <Link
                         href={`/estudiante/resultados/${result.id}`}
-                        className="px-4 py-2 bg-primary hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors inline-flex items-center gap-2"
+                        className="px-3 py-1.5 bg-primary hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors inline-flex items-center gap-1.5"
                       >
-                        <span className="material-symbols-outlined text-lg">
+                        <span className="material-symbols-outlined text-base">
                           visibility
                         </span>
                         Ver Detalle
