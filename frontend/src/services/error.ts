@@ -199,3 +199,51 @@ export function isRecoverableError(error: unknown): boolean {
 
   return false;
 }
+
+/**
+ * Extrae el mensaje de detalle (detail) directamente del error de axios
+ * @param error - Error capturado
+ * @returns El mensaje de detail si existe, o undefined
+ */
+export function getErrorDetail(error: unknown): string | undefined {
+  if (isAxiosError(error)) {
+    const axiosError = error as AxiosError;
+    if (axiosError.response?.data) {
+      const responseData = axiosError.response.data as
+        | { detail?: string }
+        | undefined;
+      return responseData?.detail;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Extrae tanto el message como el detail del error de axios
+ * @param error - Error capturado (puede ser ApiError o AxiosError)
+ * @returns Objeto con message y detail si existen
+ */
+export function getErrorMessages(error: unknown): {
+  message?: string;
+  detail?: string;
+} {
+  // Si es un ApiError, buscar en el originalError
+  if (error instanceof ApiError && error.originalError) {
+    return getErrorMessages(error.originalError);
+  }
+
+  // Si es un AxiosError directamente
+  if (isAxiosError(error)) {
+    const axiosError = error as AxiosError;
+    if (axiosError.response?.data) {
+      const responseData = axiosError.response.data as
+        | { message?: string; detail?: string }
+        | undefined;
+      return {
+        message: responseData?.message,
+        detail: responseData?.detail,
+      };
+    }
+  }
+  return {};
+}
