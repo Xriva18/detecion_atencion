@@ -37,12 +37,16 @@ export default function LoginPage() {
         let errorMessage = "Error al iniciar sesión";
         let errorDetail = error.message;
 
-        if (error.message.includes("Invalid login credentials") || error.message.includes("invalid")) {
+        if (
+          error.message.includes("Invalid login credentials") ||
+          error.message.includes("invalid")
+        ) {
           errorMessage = "Email o contraseña incorrectos";
-          errorDetail = undefined;
+          errorDetail = "";
         } else if (error.message.includes("Email not confirmed")) {
           errorMessage = "Email no confirmado";
-          errorDetail = "Por favor, verifica tu correo electrónico antes de iniciar sesión";
+          errorDetail =
+            "Por favor, verifica tu correo electrónico antes de iniciar sesión";
         }
 
         setError(errorMessage);
@@ -53,14 +57,19 @@ export default function LoginPage() {
         return;
       }
 
-      // Si hay sesión, guardar el token
-      if (data.session?.access_token) {
-        if (rememberMe) {
-          localStorage.setItem("access_token", data.session.access_token);
-        } else {
-          sessionStorage.setItem("access_token", data.session.access_token);
-        }
-      }
+      // Obtener el rol del usuario desde app_metadata (el rol viene del JWT)
+      const userRole = data.user?.app_metadata?.role as number | undefined;
+
+      console.log("Usuario logueado:", {
+        email: data.user?.email,
+        app_metadata: data.user?.app_metadata,
+        user_metadata: data.user?.user_metadata,
+        role: userRole,
+        session: data.session ? "existe" : "no existe",
+      });
+
+      // El cliente de Supabase SSR maneja las cookies automáticamente
+      // No necesitamos guardar el token manualmente
 
       // Mostrar mensaje de éxito
       setAlertMessage("Inicio de sesión exitoso");
@@ -68,13 +77,29 @@ export default function LoginPage() {
       setAlertType("success");
       setIsAlertOpen(true);
 
-      // Redirigir al dashboard después de un breve delay
+      // Redirigir según el rol del usuario después de un breve delay
+      // Usar window.location.href para forzar una recarga completa y que el middleware detecte la sesión
       setTimeout(() => {
-        router.push("/");
+        if (userRole === 1) {
+          window.location.href = "/admin";
+        } else if (userRole === 2) {
+          window.location.href = "/profesor";
+        } else if (userRole === 3) {
+          window.location.href = "/estudiante";
+        } else {
+          // Si no tiene rol, redirigir a la página principal
+          console.warn(
+            "Usuario sin rol asignado, redirigiendo a página principal"
+          );
+          window.location.href = "/";
+        }
       }, 1500);
     } catch (error) {
       // Manejar errores inesperados
-      const errorMessage = error instanceof Error ? error.message : "Error desconocido al iniciar sesión";
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Error desconocido al iniciar sesión";
       setError(errorMessage);
       setAlertMessage("Error al iniciar sesión");
       setAlertDetail(errorMessage);
