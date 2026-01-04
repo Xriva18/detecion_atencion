@@ -7,8 +7,6 @@ from supabase import Client
 from models.schemas import (
     RegisterRequest,
     RegisterResponse,
-    LoginRequest,
-    LoginResponse,
     UserResponse,
 )
 from utils.supabase_client import get_supabase_client
@@ -161,67 +159,5 @@ async def register(request: RegisterRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al registrar el usuario: {error_message}"
-        )
-
-
-@router.post("/login", response_model=LoginResponse)
-async def login(request: LoginRequest):
-    """
-    Autentica un usuario y retorna el token de sesión.
-    
-    Args:
-        request: Credenciales del usuario (email, password)
-        
-    Returns:
-        LoginResponse: Token de acceso
-        
-    Raises:
-        HTTPException: Si las credenciales son inválidas
-    """
-    supabase: Client = get_supabase_client()
-    
-    try:
-        # Autenticar usuario con Supabase Auth
-        auth_response = supabase.auth.sign_in_with_password({
-            "email": request.email,
-            "password": request.password,
-        })
-        
-        # Verificar si la autenticación fue exitosa
-        if not auth_response.user or not auth_response.session:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Credenciales inválidas"
-            )
-        
-        access_token = auth_response.session.access_token
-        
-        return LoginResponse(
-            access_token=access_token,
-            token_type="bearer"
-        )
-        
-    except HTTPException:
-        # Re-lanzar HTTPException sin modificar
-        raise
-    except Exception as e:
-        # Manejar errores de autenticación
-        error_message = str(e)
-        
-        # Detectar errores comunes de Supabase Auth
-        if "Invalid login credentials" in error_message or "invalid" in error_message.lower():
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Email o contraseña incorrectos"
-            )
-        elif "Email not confirmed" in error_message:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="El email no ha sido confirmado. Por favor, verifica tu correo electrónico."
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error al autenticar el usuario: {error_message}"
             )
 
