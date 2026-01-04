@@ -4,8 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { login } from "@/services/auth";
-import { getErrorMessage, getErrorMessages } from "@/services/error";
+import { createClientSupabase } from "@/utils/supabase/client";
 import Alert from "@/components/Alert";
 
 export default function LoginPage() {
@@ -27,13 +26,40 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await login({ email, password });
+      const supabase = createClientSupabase();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      // Guardar el token en localStorage si se seleccionó "Recuérdame"
-      if (rememberMe && response.access_token) {
-        localStorage.setItem("access_token", response.access_token);
-      } else if (response.access_token) {
-        sessionStorage.setItem("access_token", response.access_token);
+      if (error) {
+        // Manejar errores de Supabase
+        let errorMessage = "Error al iniciar sesión";
+        let errorDetail = error.message;
+
+        if (error.message.includes("Invalid login credentials") || error.message.includes("invalid")) {
+          errorMessage = "Email o contraseña incorrectos";
+          errorDetail = undefined;
+        } else if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Email no confirmado";
+          errorDetail = "Por favor, verifica tu correo electrónico antes de iniciar sesión";
+        }
+
+        setError(errorMessage);
+        setAlertMessage(errorMessage);
+        setAlertDetail(errorDetail);
+        setAlertType("error");
+        setIsAlertOpen(true);
+        return;
+      }
+
+      // Si hay sesión, guardar el token
+      if (data.session?.access_token) {
+        if (rememberMe) {
+          localStorage.setItem("access_token", data.session.access_token);
+        } else {
+          sessionStorage.setItem("access_token", data.session.access_token);
+        }
       }
 
       // Mostrar mensaje de éxito
@@ -47,12 +73,11 @@ export default function LoginPage() {
         router.push("/");
       }, 1500);
     } catch (error) {
-      const { message: errorMessage, detail: errorDetail } =
-        getErrorMessages(error);
-      const fallbackMessage = getErrorMessage(error);
-      setError(errorDetail || errorMessage || fallbackMessage);
-      setAlertMessage(errorMessage);
-      setAlertDetail(errorDetail);
+      // Manejar errores inesperados
+      const errorMessage = error instanceof Error ? error.message : "Error desconocido al iniciar sesión";
+      setError(errorMessage);
+      setAlertMessage("Error al iniciar sesión");
+      setAlertDetail(errorMessage);
       setAlertType("error");
       setIsAlertOpen(true);
     } finally {
