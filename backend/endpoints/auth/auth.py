@@ -40,10 +40,16 @@ async def register(request: RegisterRequest):
     supabase: Client = get_supabase_client()
     
     try:
-        # Crear usuario en Supabase Auth
+        # Crear usuario en Supabase Auth con user_metadata
+        # user_metadata (raw_user_meta_data) - puede ser modificado por el usuario
         auth_response = supabase.auth.sign_up({
             "email": request.email,
             "password": request.password,
+            "options": {
+                "data": {
+                    "full_name": request.full_name
+                }
+            }
         })
         
         # Verificar si se creó el usuario correctamente
@@ -54,6 +60,30 @@ async def register(request: RegisterRequest):
             )
         
         user_id = auth_response.user.id
+        
+        # Actualizar app_metadata (raw_app_meta_data) con el rol
+        # app_metadata solo puede ser modificado usando Admin API (service_role key)
+        # IMPORTANTE: Necesitas usar la service_role key en SUPABASE_KEY para que funcione
+        try:
+            # El método admin.update_user_by_id requiere service_role key
+            update_response = supabase.auth.admin.update_user_by_id(
+                user_id,
+                {
+                    "app_metadata": {
+                        "role": request.role
+                    }
+                }
+            )
+        except AttributeError:
+            # Si el método admin no está disponible, significa que no estás usando service_role key
+            # En este caso, el app_metadata no se puede actualizar desde el backend
+            # El usuario puede actualizarlo manualmente desde el dashboard de Supabase
+            pass
+        except Exception as metadata_error:
+            # Si falla la actualización de app_metadata, continuamos
+            # El usuario ya fue creado, solo falta el metadata
+            # En producción, esto podría requerir un proceso de limpieza
+            pass
         
         # Crear perfil en public.profiles
         profile_data = {
