@@ -51,18 +51,18 @@ export async function middleware(req: NextRequest) {
   const role = session.user.app_metadata?.role as number | undefined;
   const pathname = req.nextUrl.pathname;
 
-  // 🔒 SOLO ADMIN (rol 1)
+  // 🔒 SOLO ADMIN (rol 1) - Solo puede acceder a /admin
   if (pathname.startsWith("/admin") && role !== 1) {
     return NextResponse.redirect(new URL("/403", req.url));
   }
 
-  // 🔒 ADMIN + PROFESOR (roles 1 y 2)
-  if (pathname.startsWith("/profesor") && ![1, 2].includes(role || 0)) {
+  // 🔒 SOLO PROFESOR (rol 2) - Solo puede acceder a /profesor
+  if (pathname.startsWith("/profesor") && role !== 2) {
     return NextResponse.redirect(new URL("/403", req.url));
   }
 
-  // 🔒 TODOS LOS LOGUEADOS (roles 1, 2 y 3)
-  if (pathname.startsWith("/estudiante") && ![1, 2, 3].includes(role || 0)) {
+  // 🔒 SOLO ESTUDIANTE (rol 3) - Solo puede acceder a /estudiante
+  if (pathname.startsWith("/estudiante") && role !== 3) {
     return NextResponse.redirect(new URL("/403", req.url));
   }
 
