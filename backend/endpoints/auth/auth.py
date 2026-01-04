@@ -40,6 +40,15 @@ async def register(request: RegisterRequest):
     supabase: Client = get_supabase_client()
     
     try:
+        # Verificar si el usuario ya existe en la tabla profiles
+        existing_user = supabase.table("profiles").select("email").eq("email", request.email).execute()
+        
+        if existing_user.data and len(existing_user.data) > 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El usuario con este email ya está registrado"
+            )
+        
         # Crear usuario en Supabase Auth con user_metadata
         # user_metadata (raw_user_meta_data) - puede ser modificado por el usuario
         auth_response = supabase.auth.sign_up({
@@ -111,7 +120,24 @@ async def register(request: RegisterRequest):
         # Manejar errores de Supabase (usuario duplicado, etc.)
         error_message = str(e)
         
-        # Ignorar errores relacionados con profiles.confirmed ya que no usamos esa tabla
+        # PRIMERO: Detectar errores comunes de Supabase (antes de verificar profiles)
+        if "User already registered" in error_message or "already registered" in error_message.lower():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El usuario con este email ya está registrado"
+            )
+        elif "Invalid email" in error_message or "invalid" in error_message.lower():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El email proporcionado no es válido"
+            )
+        elif "Password" in error_message and ("weak" in error_message.lower() or "invalid" in error_message.lower()):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La contraseña no cumple con los requisitos de seguridad"
+            )
+        
+        # DESPUÉS: Ignorar errores relacionados con profiles.confirmed solo si el usuario se creó exitosamente
         if "profiles" in error_message.lower() and "confirmed" in error_message.lower():
             # Si el usuario se creó exitosamente pero hay un error con profiles, 
             # retornamos éxito ya que el usuario está en auth.users
@@ -131,27 +157,11 @@ async def register(request: RegisterRequest):
                     user=user_response
                 )
         
-        # Detectar errores comunes de Supabase
-        if "User already registered" in error_message or "already registered" in error_message.lower():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="El usuario con este email ya está registrado"
-            )
-        elif "Invalid email" in error_message or "invalid" in error_message.lower():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="El email proporcionado no es válido"
-            )
-        elif "Password" in error_message and ("weak" in error_message.lower() or "invalid" in error_message.lower()):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="La contraseña no cumple con los requisitos de seguridad"
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error al registrar el usuario: {error_message}"
-            )
+        # Si llegamos aquí, es un error desconocido
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al registrar el usuario: {error_message}"
+        )
 
 
 @router.post("/login", response_model=LoginResponse)
