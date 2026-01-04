@@ -117,7 +117,8 @@ async def register(request: RegisterRequest):
         )
         
         return RegisterResponse(
-            message="Usuario registrado exitosamente",
+            message="Confirmación de correo enviada",
+            detail="Por favor, verifica tu correo electrónico para activar tu cuenta",
             user=user_response
         )
         
