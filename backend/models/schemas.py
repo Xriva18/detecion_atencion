@@ -40,7 +40,6 @@ class LoginResponse(BaseModel):
     """Respuesta del endpoint de login"""
     access_token: str
     token_type: str
-    user: UserResponse
 
 
 # =====================================================

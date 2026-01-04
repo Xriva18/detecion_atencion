@@ -154,16 +154,16 @@ async def register(request: RegisterRequest):
 @router.post("/login", response_model=LoginResponse)
 async def login(request: LoginRequest):
     """
-    Autentica un usuario y retorna el token de sesión junto con sus datos.
+    Autentica un usuario y retorna el token de sesión.
     
     Args:
         request: Credenciales del usuario (email, password)
         
     Returns:
-        LoginResponse: Token de acceso y datos del usuario
+        LoginResponse: Token de acceso
         
     Raises:
-        HTTPException: Si las credenciales son inválidas o el usuario no existe
+        HTTPException: Si las credenciales son inválidas
     """
     supabase: Client = get_supabase_client()
     
@@ -181,33 +181,11 @@ async def login(request: LoginRequest):
                 detail="Credenciales inválidas"
             )
         
-        user_id = auth_response.user.id
         access_token = auth_response.session.access_token
-        
-        # Obtener perfil del usuario desde public.profiles
-        profile_response = supabase.table("profiles").select("*").eq("user_id", user_id).execute()
-        
-        if not profile_response.data or len(profile_response.data) == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Perfil de usuario no encontrado"
-            )
-        
-        profile = profile_response.data[0]
-        
-        # Crear respuesta con los datos del usuario
-        user_response = UserResponse(
-            user_id=str(profile["user_id"]),
-            email=profile["email"],
-            full_name=profile["full_name"],
-            role=profile["role"],
-            confirmed=profile["confirmed"],
-        )
         
         return LoginResponse(
             access_token=access_token,
-            token_type="bearer",
-            user=user_response
+            token_type="bearer"
         )
         
     except HTTPException:
