@@ -1,10 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
+import { createClientSupabase } from "@/utils/supabase/client";
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const cerrarSesion = async () => {
+    setIsLoading(true);
+    try {
+      const supabase = createClientSupabase();
+      await supabase.auth.signOut();
+      router.push("/login");
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+      // Aún así redirigir al login
+      router.push("/login");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const navItems = [
     {
@@ -65,14 +84,21 @@ export default function Sidebar() {
         {/* Footer / Logout */}
         <div className="flex flex-col gap-1 mt-auto">
           <button
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-            onClick={() => {
-              // TODO: Implementar logout
-              console.log("Logout");
-            }}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={cerrarSesion}
+            disabled={isLoading}
           >
-            <span className="material-symbols-outlined">logout</span>
-            <p className="text-sm font-medium">Cerrar Sesión</p>
+            {isLoading ? (
+              <>
+                <span className="material-symbols-outlined animate-spin">sync</span>
+                <p className="text-sm font-medium">Cerrando...</p>
+              </>
+            ) : (
+              <>
+                <span className="material-symbols-outlined">logout</span>
+                <p className="text-sm font-medium">Cerrar Sesión</p>
+              </>
+            )}
           </button>
         </div>
       </div>
