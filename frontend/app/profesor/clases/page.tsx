@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Header from "@/components/Admin/Header";
+import api from "@/services/api";
 import {
   CreateClassModal,
   EditClassModal,
@@ -245,58 +246,74 @@ const mockStudentVideoResults: StudentVideoResult[] = [
 ];
 
 export default function GestiónClasesPage() {
+  /* 
+    Refactorizado para usar API Real
+  */
   const searchParams = useSearchParams();
-  const [classes, setClasses] = useState<Class[]>(mockClasses);
+  const router = useRouter();
+  const [classes, setClasses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Mock students y videos solo para la demo de "detalle", en real se cargarian de API tambien
+  // por simplicidad mantenemos mocks para detalle por ahora, pero la lista DE CLASES es real.
   const [students, setStudents] = useState<Student[]>(mockStudents);
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  // Modals
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [selectedClass, setSelectedClass] = useState<Class | null>(null);
+
+  const [selectedClass, setSelectedClass] = useState<any | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "detail" | "videoResults">("list");
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [activeTab, setActiveTab] = useState<"videos" | "students">("videos");
+
+  // Student Modals
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [isViewStudentModalOpen, setIsViewStudentModalOpen] = useState(false);
   const [isDeleteStudentModalOpen, setIsDeleteStudentModalOpen] = useState(false);
 
+  useEffect(() => {
+    fetchClasses();
+  }, []);
+
+  const fetchClasses = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/classes/');
+      setClasses(res.data);
+    } catch (error) {
+      console.error("Failed to fetch classes", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Manejar parámetros de URL para navegación directa
   useEffect(() => {
     const classId = searchParams.get("classId");
-    const videoId = searchParams.get("videoId");
+    // const videoId = searchParams.get("videoId"); // Simplificado
 
-    if (classId) {
-      const classItem = mockClasses.find((c) => c.id === classId);
+    if (classId && classes.length > 0) {
+      const classItem = classes.find((c: any) => c.id === classId);
       if (classItem) {
         setSelectedClass(classItem);
-        if (videoId) {
-          const video = mockVideos.find((v) => v.id === videoId && v.classId === classId);
-          if (video) {
-            setSelectedVideo(video);
-            setViewMode("videoResults");
-          } else {
-            setViewMode("detail");
-            setActiveTab("videos");
-          }
-        } else {
-          setViewMode("detail");
-          setActiveTab("videos");
-        }
+        setViewMode("detail");
       }
-    } else {
-      // Si no hay classId en la URL, volver a la vista de lista
-      setViewMode("list");
-      setSelectedClass(null);
-      setSelectedVideo(null);
     }
-  }, [searchParams]);
+  }, [searchParams, classes]);
 
-  const filteredClasses = classes.filter((classItem) => {
-    const matchesSearch =
-      classItem.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      classItem.description.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+  // Handle Create Class Navigation
+  const handleNavToCreate = () => {
+    router.push("/profesor/crear-clase");
+  };
+
+  const filteredClasses = classes.filter((classItem: any) => {
+    const term = searchTerm.toLowerCase();
+    return (
+      classItem.name.toLowerCase().includes(term) ||
+      (classItem.description || "").toLowerCase().includes(term)
+    );
   });
 
   const handleCreateClass = (classData: Partial<Class>) => {
@@ -516,26 +533,24 @@ export default function GestiónClasesPage() {
                         </td>
                         <td className="py-3 px-4">
                           <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-semibold ${
-                              result.score >= 80
-                                ? "bg-green-50 text-green-700"
-                                : result.score >= 60
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-semibold ${result.score >= 80
+                              ? "bg-green-50 text-green-700"
+                              : result.score >= 60
                                 ? "bg-yellow-50 text-yellow-700"
                                 : "bg-red-50 text-red-700"
-                            }`}
+                              }`}
                           >
                             {result.score}%
                           </span>
                         </td>
                         <td className="py-3 px-4">
                           <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-semibold capitalize ${
-                              result.attentionLevel === "alto"
-                                ? "bg-green-50 text-green-700"
-                                : result.attentionLevel === "medio"
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-semibold capitalize ${result.attentionLevel === "alto"
+                              ? "bg-green-50 text-green-700"
+                              : result.attentionLevel === "medio"
                                 ? "bg-yellow-50 text-yellow-700"
                                 : "bg-red-50 text-red-700"
-                            }`}
+                              }`}
                           >
                             {result.attentionLevel}
                           </span>
@@ -591,21 +606,19 @@ export default function GestiónClasesPage() {
             <div className="flex gap-4">
               <button
                 onClick={() => setActiveTab("videos")}
-                className={`pb-4 px-2 font-medium transition-colors ${
-                  activeTab === "videos"
-                    ? "text-primary border-b-2 border-primary"
-                    : "text-[#616f89] hover:text-[#111318]"
-                }`}
+                className={`pb-4 px-2 font-medium transition-colors ${activeTab === "videos"
+                  ? "text-primary border-b-2 border-primary"
+                  : "text-[#616f89] hover:text-[#111318]"
+                  }`}
               >
                 Videos ({classVideos.length})
               </button>
               <button
                 onClick={() => setActiveTab("students")}
-                className={`pb-4 px-2 font-medium transition-colors ${
-                  activeTab === "students"
-                    ? "text-primary border-b-2 border-primary"
-                    : "text-[#616f89] hover:text-[#111318]"
-                }`}
+                className={`pb-4 px-2 font-medium transition-colors ${activeTab === "students"
+                  ? "text-primary border-b-2 border-primary"
+                  : "text-[#616f89] hover:text-[#111318]"
+                  }`}
               >
                 Estudiantes ({classStudents.length})
               </button>
@@ -804,13 +817,12 @@ export default function GestiónClasesPage() {
                                   Nota
                                 </label>
                                 <p
-                                  className={`text-lg font-semibold ${
-                                    result.score >= 80
-                                      ? "text-green-700"
-                                      : result.score >= 60
+                                  className={`text-lg font-semibold ${result.score >= 80
+                                    ? "text-green-700"
+                                    : result.score >= 60
                                       ? "text-yellow-700"
                                       : "text-red-700"
-                                  }`}
+                                    }`}
                                 >
                                   {result.score}%
                                 </p>
@@ -930,27 +942,26 @@ export default function GestiónClasesPage() {
       <div className="p-6 md:p-8 max-w-7xl mx-auto w-full flex flex-col gap-8">
 
         {/* Filters */}
-        <div className="flex flex-col md:flex-row gap-4">
-          <label className="flex flex-col flex-1 relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#616f89]">
-              <span className="material-symbols-outlined">search</span>
+        <div className="flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
+          <div className="w-full md:w-96 relative">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#616f89]">
+              search
             </span>
             <input
-              className="flex w-full rounded-lg text-[#111318] focus:outline-none focus:ring-2 focus:ring-primary border border-[#dbdfe6] bg-white h-12 pl-12 pr-4 text-base transition-shadow"
-              placeholder="Buscar por nombre de clase o código..."
+              type="text"
+              placeholder="Buscar clases..."
+              className="w-full pl-10 pr-4 h-11 rounded-lg border border-[#dbdfe6] focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-[#111318]"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-          </label>
-          <div className="flex gap-4">
-            <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors shadow-lg shadow-primary/30"
-            >
-              <span className="material-symbols-outlined text-lg">add</span>
-              <span>Nueva Clase</span>
-            </button>
           </div>
+          <button
+            onClick={handleNavToCreate}
+            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition-all shadow-sm shadow-primary/25 whitespace-nowrap"
+          >
+            <span className="material-symbols-outlined">add</span>
+            Crear Nueva Clase
+          </button>
         </div>
 
         {/* Grid of Classes */}
@@ -1151,13 +1162,12 @@ export default function GestiónClasesPage() {
                                 Nota
                               </label>
                               <p
-                                className={`text-lg font-semibold ${
-                                  result.score >= 80
-                                    ? "text-green-700"
-                                    : result.score >= 60
+                                className={`text-lg font-semibold ${result.score >= 80
+                                  ? "text-green-700"
+                                  : result.score >= 60
                                     ? "text-yellow-700"
                                     : "text-red-700"
-                                }`}
+                                  }`}
                               >
                                 {result.score}%
                               </p>
@@ -1167,13 +1177,12 @@ export default function GestiónClasesPage() {
                                 Nivel de Atención
                               </label>
                               <p
-                                className={`text-sm font-semibold capitalize ${
-                                  result.attentionLevel === "alto"
-                                    ? "text-green-700"
-                                    : result.attentionLevel === "medio"
+                                className={`text-sm font-semibold capitalize ${result.attentionLevel === "alto"
+                                  ? "text-green-700"
+                                  : result.attentionLevel === "medio"
                                     ? "text-yellow-700"
                                     : "text-red-700"
-                                }`}
+                                  }`}
                               >
                                 {result.attentionLevel}
                               </p>

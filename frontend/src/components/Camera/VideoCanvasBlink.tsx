@@ -9,12 +9,26 @@ export default function VideoCanvasBlink({
   width = 640,
   height = 480,
   isPaused = false,
+  isActive = true,
   onFrameSent,
+  onBlink,
   onFrameError,
 }: VideoCanvasBlinkProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const captureIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Refs para callbacks para evitar recreación del intervalo
+  const onFrameSentRef = useRef(onFrameSent);
+  const onBlinkRef = useRef(onBlink);
+  const onFrameErrorRef = useRef(onFrameError);
+
+  // Actualizar refs cuando cambien los callbacks
+  useEffect(() => {
+    onFrameSentRef.current = onFrameSent;
+    onBlinkRef.current = onBlink;
+    onFrameErrorRef.current = onFrameError;
+  }, [onFrameSent, onBlink, onFrameError]);
 
   useEffect(() => {
     if (!stream || !videoRef.current || !canvasRef.current) return;
@@ -68,10 +82,17 @@ export default function VideoCanvasBlink({
     }
   }, [isPaused, stream]);
 
-  // Efecto para capturar frames cada 300ms
+  // Efecto para capturar frames cada 500ms (más estable)
   useEffect(() => {
-    if (!stream || !canvasRef.current || isPaused) {
-      // Limpiar intervalo si está pausado o no hay stream
+    console.log('[VideoCanvasBlink] Efecto captura ejecutándose:', {
+      hasStream: !!stream,
+      hasCanvas: !!canvasRef.current,
+      isPaused,
+      isActive
+    });
+
+    if (!stream || !canvasRef.current || isPaused || !isActive) {
+      console.log('[VideoCanvasBlink] ⏸️ Captura detenida por condiciones');
       if (captureIntervalRef.current) {
         clearInterval(captureIntervalRef.current);
         captureIntervalRef.current = null;
@@ -79,9 +100,18 @@ export default function VideoCanvasBlink({
       return;
     }
 
+    // Si ya hay un intervalo activo, no crear otro
+    if (captureIntervalRef.current) {
+      console.log('[VideoCanvasBlink] ⏭️ Intervalo ya existe, no recrear');
+      return;
+    }
+
     // Función para capturar frame y enviarlo al backend
     const capturarFrame = async () => {
-      if (!canvasRef.current || isPaused) return;
+      if (!canvasRef.current) {
+        console.log('[VideoCanvasBlink] ❌ No hay canvas');
+        return;
+      }
 
       try {
         const canvas = canvasRef.current;
@@ -91,47 +121,58 @@ export default function VideoCanvasBlink({
         // Enviar al backend para detección de parpadeos
         const response = await enviarFrameParaParpadeo(base64Image);
 
-        // Llamar callback si está disponible
-        if (onFrameSent) {
-          onFrameSent(response);
+        console.log('[VideoCanvasBlink] ✅ Frame enviado, respuesta:', response);
+
+        // Llamar callbacks si están disponibles (usando refs)
+        if (onFrameSentRef.current) {
+          onFrameSentRef.current(response);
+        }
+        if (onBlinkRef.current) {
+          onBlinkRef.current(response);
         }
       } catch (error) {
-        // Manejar error sin bloquear la captura
-        if (onFrameError) {
-          onFrameError(
+        console.error("[VideoCanvasBlink] ❌ Error capturando frame:", error);
+        if (onFrameErrorRef.current) {
+          onFrameErrorRef.current(
             error instanceof Error ? error : new Error("Error desconocido")
           );
         }
       }
     };
 
-    // Esperar a que el canvas esté listo antes de empezar a capturar
+    // Esperar a que el canvas esté listo
     const checkCanvasReady = () => {
       if (canvasRef.current && canvasRef.current.width > 0) {
-        // Iniciar captura cada 300ms
+        console.log('[VideoCanvasBlink] 🚀 Canvas listo, iniciando captura cada 500ms');
+        // Iniciar captura inmediata
+        capturarFrame();
+        // Luego cada 500ms
         captureIntervalRef.current = setInterval(() => {
           capturarFrame();
-        }, 300);
+        }, 500);
       } else {
-        // Reintentar después de un breve delay
-        setTimeout(checkCanvasReady, 100);
+        console.log('[VideoCanvasBlink] ⏳ Esperando canvas...');
+        setTimeout(checkCanvasReady, 200);
       }
     };
 
     checkCanvasReady();
 
-    // Cleanup: limpiar intervalo al desmontar o cambiar dependencias
+    // Cleanup: limpiar intervalo al desmontar
     return () => {
+      console.log('[VideoCanvasBlink] 🧹 Limpiando intervalo');
       if (captureIntervalRef.current) {
         clearInterval(captureIntervalRef.current);
         captureIntervalRef.current = null;
       }
     };
-  }, [stream, isPaused, onFrameSent, onFrameError]);
+    // Solo recrear el efecto cuando stream, isPaused o isActive cambian
+    // NO incluir callbacks para evitar recreación constante
+  }, [stream, isPaused, isActive]);
 
   if (!stream) {
     return (
-      <div 
+      <div
         className="flex items-center justify-center bg-gray-200 dark:bg-gray-800 rounded-lg w-full max-w-full"
         style={{ maxWidth: `${width}px`, aspectRatio: `${width}/${height}` }}
       >
@@ -154,10 +195,10 @@ export default function VideoCanvasBlink({
       <canvas
         ref={canvasRef}
         className="rounded-lg border-2 border-gray-300 dark:border-gray-700 w-full h-auto max-w-full"
-        style={{ 
-          maxWidth: `${width}px`, 
-          aspectRatio: `${width}/${height}`, 
-          transform: 'scaleX(-1)' 
+        style={{
+          maxWidth: `${width}px`,
+          aspectRatio: `${width}/${height}`,
+          transform: 'scaleX(-1)'
         }}
       />
     </div>

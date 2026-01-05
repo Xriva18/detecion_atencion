@@ -23,7 +23,9 @@ export interface VideoCanvasBlinkProps {
   width?: number;
   height?: number;
   isPaused?: boolean;
+  isActive?: boolean;
   onFrameSent?: (response: import("@/types/detection").BlinkDetectionResponse) => void;
+  onBlink?: (response: import("@/types/detection").BlinkDetectionResponse) => void;
   onFrameError?: (error: Error) => void;
 }
 

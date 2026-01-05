@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     # Configuración de Supabase
     supabase_url: str
     supabase_key: str
+
+    # Configuración de IA (Gemini)
+    gemini_api_key: str = ""
     
     if PYDANTIC_V2:
         model_config = SettingsConfigDict(

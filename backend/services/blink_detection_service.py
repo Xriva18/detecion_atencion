@@ -53,6 +53,7 @@ class BlinkDetectionService:
             BlinkDetectionResponse con información sobre el parpadeo
         """
         try:
+            print(f"[BlinkDetection] Procesando imagen...")
             # Convertir BGR a RGB (MediaPipe usa RGB)
             img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             
@@ -62,6 +63,7 @@ class BlinkDetectionService:
             # Verificar si se detectó algún rostro
             if not results.multi_face_landmarks or len(results.multi_face_landmarks) == 0:
                 # No se detectó rostro, retornar valores por defecto
+                print("[BlinkDetection] ❌ No se detectaron landmarks faciales")
                 return BlinkDetectionResponse(
                     blinking=False,
                     left_ear=0.0,
@@ -83,14 +85,17 @@ class BlinkDetectionService:
             avg_ear = (left_ear + right_ear) / 2.0
             blinking = avg_ear < self.ear_threshold
             
+            print(f"[BlinkDetection] EAR: L={left_ear:.3f} R={right_ear:.3f} | Parpadeando: {blinking}")
+            
             return BlinkDetectionResponse(
                 blinking=blinking,
                 left_ear=left_ear,
                 right_ear=right_ear
             )
             
-        except Exception:
+        except Exception as e:
             # En caso de error, retornar valores por defecto
+            print(f"[BlinkDetection] ⚠️ Error:  {e}")
             return BlinkDetectionResponse(
                 blinking=False,
                 left_ear=0.0,
@@ -159,4 +164,3 @@ class BlinkDetectionService:
         
         ear = (horizontal_dist_1 + horizontal_dist_2) / (2.0 * vertical_dist)
         return float(ear)
-

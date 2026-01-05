@@ -1,77 +1,49 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Header from "@/components/Admin/Header";
+import api from "@/services/api";
 
 export default function CuestionarioPage() {
   const params = useParams();
   const router = useRouter();
-  const videoId = params.id as string;
+  const quizId = params.id as string;
+
+  const [loading, setLoading] = useState(true);
+  const [questions, setQuestions] = useState<any[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<{ [key: string]: string }>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data - En producción esto vendría de una API
-  const mockQuestions = [
-    {
-      id: "1",
-      question: "¿Qué es una derivada?",
-      options: [
-        "La integral de una función",
-        "La tasa de cambio instantánea de una función",
-        "El límite de una función",
-        "La suma de una función",
-      ],
-      correctAnswer: "1",
-    },
-    {
-      id: "2",
-      question: "¿Cuál es la derivada de f(x) = x²?",
-      options: ["x", "2x", "x²", "2x²"],
-      correctAnswer: "1",
-    },
-    {
-      id: "3",
-      question: "¿Qué representa la derivada en un gráfico?",
-      options: [
-        "El área bajo la curva",
-        "La pendiente de la recta tangente",
-        "El punto de intersección",
-        "La altura máxima",
-      ],
-      correctAnswer: "1",
-    },
-    {
-      id: "4",
-      question: "¿Cuál es la regla del producto?",
-      options: [
-        "f'(x) * g'(x)",
-        "f'(x) * g(x) + f(x) * g'(x)",
-        "f(x) * g(x)",
-        "f'(x) + g'(x)",
-      ],
-      correctAnswer: "1",
-    },
-    {
-      id: "5",
-      question: "¿Qué es un punto crítico?",
-      options: [
-        "Un punto donde la función es cero",
-        "Un punto donde la derivada es cero o no existe",
-        "Un punto de inflexión",
-        "Un punto máximo",
-      ],
-      correctAnswer: "1",
-    },
-  ];
+  // Fetch Quiz Data
+  useEffect(() => {
+    const fetchQuiz = async () => {
+      try {
+        const res = await api.get(`/sessions/quiz/${quizId}`);
+        if (res.data && res.data.content) {
+          setQuestions(res.data.content);
+        } else {
+          setError("No se encontraron preguntas para este cuestionario.");
+        }
+      } catch (err) {
+        console.error("Error fetching quiz:", err);
+        setError("Error cargando el cuestionario.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (quizId) fetchQuiz();
+  }, [quizId]);
 
-  const handleAnswerSelect = (questionId: string, answer: string) => {
-    setAnswers({ ...answers, [questionId]: answer });
+  const handleAnswerSelect = (index: number, answer: string) => {
+    // Usamos el índice como key temporal, idealmente el objeto pregunta tendría ID único
+    setAnswers({ ...answers, [`q${index}`]: answer });
   };
 
   const handleNext = () => {
-    if (currentQuestion < mockQuestions.length - 1) {
+    if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     }
   };
@@ -82,19 +54,41 @@ export default function CuestionarioPage() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setIsSubmitted(true);
-    // TODO: Enviar respuestas al backend
-    console.log("Respuestas:", answers);
-    // Redirigir a resultados después de un delay
-    setTimeout(() => {
-      router.push("/estudiante/resultados");
-    }, 2000);
+    try {
+      await api.post('/sessions/quiz/submit', {
+        quiz_id: quizId,
+        answers: answers
+      });
+
+      // Redirigir a resultados (o dashboard por ahora)
+      setTimeout(() => {
+        // TODO: Crear página de resultados /estudiante/resultados/[quizId]
+        // Por ahora volvemos a la lista de clases
+        alert("¡Cuestionario enviado! Tu nota ha sido registrada.");
+        router.push("/estudiante/dashboard");
+      }, 1500);
+
+    } catch (err) {
+      console.error("Error submitting quiz:", err);
+      alert("Hubo un error enviando tus respuestas.");
+      setIsSubmitted(false);
+    }
   };
 
-  const currentQ = mockQuestions[currentQuestion];
-  const progress = ((currentQuestion + 1) / mockQuestions.length) * 100;
-  const allAnswered = Object.keys(answers).length === mockQuestions.length;
+  if (loading) return <div className="p-10 text-center">Cargando cuestionario...</div>;
+  if (error) return <div className="p-10 text-center text-red-500">{error}</div>;
+  if (questions.length === 0) return <div className="p-10 text-center">No hay preguntas disponibles.</div>;
+
+  const currentQ = questions[currentQuestion];
+  // Adaptar estructura si viene del backend diferente
+  // Backend esperado: { question: "...", options: ["..."], correct_answer: "..." }
+
+  const progress = ((currentQuestion + 1) / questions.length) * 100;
+  // Verificar si la respuesta actual está seleccionada (usando índice q{i})
+  const currentAnswer = answers[`q${currentQuestion}`];
+  const allAnswered = Object.keys(answers).length === questions.length;
 
   if (isSubmitted) {
     return (
@@ -103,8 +97,8 @@ export default function CuestionarioPage() {
           title="Cuestionario"
           subtitle="Procesando tus respuestas"
           user={{
-            name: "Sofía",
-            email: "sofia@estudiante.com",
+            name: "Estudiante",
+            email: "estudiante@demo.com",
             role: "Estudiante",
           }}
         />
@@ -112,10 +106,7 @@ export default function CuestionarioPage() {
           <div className="flex flex-col items-center gap-4">
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             <p className="text-lg font-medium text-[#111318]">
-              Procesando tus respuestas...
-            </p>
-            <p className="text-sm text-[#616f89]">
-              Serás redirigido a tus resultados en breve
+              Enviando respuestas...
             </p>
           </div>
         </div>
@@ -126,11 +117,11 @@ export default function CuestionarioPage() {
   return (
     <>
       <Header
-        title="Cuestionario"
-        subtitle={`Pregunta ${currentQuestion + 1} de ${mockQuestions.length}`}
+        title="Cuestionario Personalizado"
+        subtitle={`Pregunta ${currentQuestion + 1} de ${questions.length}`}
         user={{
-          name: "Sofía",
-          email: "sofia@estudiante.com",
+          name: "Estudiante",
+          email: "estudiante@demo.com",
           role: "Estudiante",
         }}
       />
@@ -139,7 +130,7 @@ export default function CuestionarioPage() {
         <div className="bg-white rounded-xl border border-[#e5e7eb] p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-[#111318]">
-              Progreso: {currentQuestion + 1} / {mockQuestions.length}
+              Progreso: {currentQuestion + 1} / {questions.length}
             </span>
             <span className="text-sm text-[#616f89]">
               {Math.round(progress)}%
@@ -159,26 +150,23 @@ export default function CuestionarioPage() {
             {currentQ.question}
           </h2>
           <div className="flex flex-col gap-3">
-            {currentQ.options.map((option, index) => {
-              const optionId = index.toString();
-              const isSelected = answers[currentQ.id] === optionId;
+            {currentQ.options && currentQ.options.map((option: string, index: number) => {
+              const isSelected = currentAnswer === option;
               return (
                 <button
                   key={index}
-                  onClick={() => handleAnswerSelect(currentQ.id, optionId)}
-                  className={`p-4 rounded-lg border-2 text-left transition-all ${
-                    isSelected
-                      ? "border-primary bg-primary/5"
-                      : "border-[#e5e7eb] hover:border-primary/50"
-                  }`}
+                  onClick={() => handleAnswerSelect(currentQuestion, option)}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${isSelected
+                    ? "border-primary bg-primary/5"
+                    : "border-[#e5e7eb] hover:border-primary/50"
+                    }`}
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className={`flex items-center justify-center w-6 h-6 rounded-full border-2 ${
-                        isSelected
-                          ? "border-primary bg-primary text-white"
-                          : "border-[#dbdfe6]"
-                      }`}
+                      className={`flex items-center justify-center w-6 h-6 rounded-full border-2 ${isSelected
+                        ? "border-primary bg-primary text-white"
+                        : "border-[#dbdfe6]"
+                        }`}
                     >
                       {isSelected && (
                         <span className="material-symbols-outlined text-sm">
@@ -204,10 +192,10 @@ export default function CuestionarioPage() {
             <span className="material-symbols-outlined">arrow_back</span>
             Anterior
           </button>
-          {currentQuestion < mockQuestions.length - 1 ? (
+          {currentQuestion < questions.length - 1 ? (
             <button
               onClick={handleNext}
-              disabled={!answers[currentQ.id]}
+              disabled={!currentAnswer}
               className="px-6 py-3 rounded-lg bg-primary hover:bg-blue-700 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               Siguiente
