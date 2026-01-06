@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClientSupabase } from "@/utils/supabase/client";
+import { MFAService } from "@/services/auth/mfaService";
 import Alert from "@/components/Alert";
 
 export default function LoginPage() {
@@ -57,43 +58,86 @@ export default function LoginPage() {
         return;
       }
 
-      // Obtener el rol del usuario desde app_metadata (el rol viene del JWT)
-      const userRole = data.user?.app_metadata?.role as number | undefined;
+      // Verificar si el usuario requiere MFA
+      // Si session es null pero user no es null, significa que necesita MFA
+      if (!data.session && data.user) {
+        console.log("Usuario requiere MFA:", {
+          email: data.user.email,
+        });
 
-      console.log("Usuario logueado:", {
-        email: data.user?.email,
-        app_metadata: data.user?.app_metadata,
-        user_metadata: data.user?.user_metadata,
-        role: userRole,
-        session: data.session ? "existe" : "no existe",
-      });
+        try {
+          // Obtener los factores MFA del usuario
+          const factors = await MFAService.listFactors();
+          
+          if (factors.length === 0) {
+            // Usuario no tiene MFA configurado pero Supabase dice que requiere MFA
+            // Esto no debería pasar, pero manejamos el caso
+            throw new Error("Usuario requiere MFA pero no tiene factores configurados");
+          }
 
-      // El cliente de Supabase SSR maneja las cookies automáticamente
-      // No necesitamos guardar el token manualmente
-
-      // Mostrar mensaje de éxito
-      setAlertMessage("Inicio de sesión exitoso");
-      setAlertDetail(undefined);
-      setAlertType("success");
-      setIsAlertOpen(true);
-
-      // Redirigir según el rol del usuario después de un breve delay
-      // Usar window.location.href para forzar una recarga completa y que el middleware detecte la sesión
-      setTimeout(() => {
-        if (userRole === 1) {
-          window.location.href = "/admin";
-        } else if (userRole === 2) {
-          window.location.href = "/profesor";
-        } else if (userRole === 3) {
-          window.location.href = "/estudiante";
-        } else {
-          // Si no tiene rol, redirigir a la página principal
-          console.warn(
-            "Usuario sin rol asignado, redirigiendo a página principal"
+          // Usar el primer factor (normalmente solo hay uno)
+          const factor = factors[0];
+          
+          // Redirigir a la página de verificación MFA
+          router.push(
+            `/twoauth?email=${encodeURIComponent(email)}&factorId=${encodeURIComponent(factor.id)}`
           );
-          window.location.href = "/";
+          return;
+        } catch (mfaError) {
+          console.error("Error al obtener factores MFA:", mfaError);
+          setError("Error al verificar autenticación de dos factores");
+          setAlertMessage("Error al verificar autenticación de dos factores");
+          setAlertDetail(
+            mfaError instanceof Error
+              ? mfaError.message
+              : "Por favor, intenta nuevamente"
+          );
+          setAlertType("error");
+          setIsAlertOpen(true);
+          return;
         }
-      }, 1500);
+      }
+
+      // Si hay sesión, el login fue exitoso sin MFA o ya se verificó
+      if (data.session) {
+        // Obtener el rol del usuario desde app_metadata (el rol viene del JWT)
+        const userRole = data.user?.app_metadata?.role as number | undefined;
+
+        console.log("Usuario logueado:", {
+          email: data.user?.email,
+          app_metadata: data.user?.app_metadata,
+          user_metadata: data.user?.user_metadata,
+          role: userRole,
+          session: data.session ? "existe" : "no existe",
+        });
+
+        // El cliente de Supabase SSR maneja las cookies automáticamente
+        // No necesitamos guardar el token manualmente
+
+        // Mostrar mensaje de éxito
+        setAlertMessage("Inicio de sesión exitoso");
+        setAlertDetail(undefined);
+        setAlertType("success");
+        setIsAlertOpen(true);
+
+        // Redirigir según el rol del usuario después de un breve delay
+        // Usar window.location.href para forzar una recarga completa y que el middleware detecte la sesión
+        setTimeout(() => {
+          if (userRole === 1) {
+            window.location.href = "/admin";
+          } else if (userRole === 2) {
+            window.location.href = "/profesor";
+          } else if (userRole === 3) {
+            window.location.href = "/estudiante";
+          } else {
+            // Si no tiene rol, redirigir a la página principal
+            console.warn(
+              "Usuario sin rol asignado, redirigiendo a página principal"
+            );
+            window.location.href = "/";
+          }
+        }, 1500);
+      }
     } catch (error) {
       // Manejar errores inesperados
       const errorMessage =

@@ -3,6 +3,8 @@
 import { useRef, useEffect } from "react";
 import type { VideoCanvasBlinkProps } from "@/types";
 import { enviarFrameParaParpadeo } from "@/services/blinkService";
+import { enviarFrameAlBackend } from "@/services/detectionService";
+import type { CombinedDetectionResponse } from "@/types/detection";
 
 export default function VideoCanvasBlink({
   stream,
@@ -108,8 +110,13 @@ export default function VideoCanvasBlink({
 
     // Función para capturar frame y enviarlo al backend
     const capturarFrame = async () => {
-      if (!canvasRef.current) {
-        console.log('[VideoCanvasBlink] ❌ No hay canvas');
+      if (!canvasRef.current || isPaused) {
+        return;
+      }
+
+      // Verificar que el canvas tenga datos válidos
+      if (canvasRef.current.width === 0 || canvasRef.current.height === 0) {
+        console.log('[VideoCanvasBlink] ⏳ Canvas aún no está listo');
         return;
       }
 
@@ -117,18 +124,81 @@ export default function VideoCanvasBlink({
         const canvas = canvasRef.current;
         // Convertir canvas a base64
         const base64Image = canvas.toDataURL("image/jpeg", 0.8);
+        
+        console.log('[VideoCanvasBlink] 📤 Enviando frame al backend...');
 
-        // Enviar al backend para detección de parpadeos
-        const response = await enviarFrameParaParpadeo(base64Image);
+        // Enviar al backend para detección de rostro y parpadeos en paralelo
+        // Usar Promise.allSettled para manejar errores individualmente
+        const [faceResult, blinkResult] = await Promise.allSettled([
+          enviarFrameAlBackend(base64Image),
+          enviarFrameParaParpadeo(base64Image),
+        ]);
 
-        console.log('[VideoCanvasBlink] ✅ Frame enviado, respuesta:', response);
+        // Manejar respuesta de detección de rostro
+        let faceResponse;
+        if (faceResult.status === 'fulfilled') {
+          faceResponse = faceResult.value;
+          console.log('[VideoCanvasBlink] 👤 Detección de rostro:', {
+            detected: faceResponse.detected,
+            confidence: faceResponse.confidence,
+            hasCoordinates: !!faceResponse.coordinates,
+          });
+        } else {
+          console.error("[VideoCanvasBlink] ❌ Error en detección de rostro:", faceResult.reason);
+          // Si falla la detección de rostro, asumir que no hay rostro detectado
+          faceResponse = {
+            detected: false,
+            coordinates: null,
+            confidence: 0.0,
+          };
+        }
+
+        // Manejar respuesta de detección de parpadeo
+        let blinkResponse;
+        if (blinkResult.status === 'fulfilled') {
+          blinkResponse = blinkResult.value;
+        } else {
+          console.error("[VideoCanvasBlink] ❌ Error en detección de parpadeo:", blinkResult.reason);
+          // Si falla la detección de parpadeo, usar valores por defecto
+          blinkResponse = {
+            blinking: false,
+            left_ear: 0.0,
+            right_ear: 0.0,
+          };
+          // Notificar error solo si es crítico
+          if (onFrameErrorRef.current) {
+            onFrameErrorRef.current(
+              blinkResult.reason instanceof Error 
+                ? blinkResult.reason 
+                : new Error("Error en detección de parpadeo")
+            );
+          }
+        }
+
+        // Combinar las respuestas
+        const combinedResponse: CombinedDetectionResponse = {
+          faceDetected: faceResponse.detected,
+          blinking: blinkResponse.blinking,
+          left_ear: blinkResponse.left_ear,
+          right_ear: blinkResponse.right_ear,
+          faceConfidence: faceResponse.confidence,
+          faceCoordinates: faceResponse.coordinates,
+        };
+
+        console.log('[VideoCanvasBlink] ✅ Frame enviado, respuesta combinada:', {
+          faceDetected: combinedResponse.faceDetected,
+          blinking: combinedResponse.blinking,
+          faceConfidence: combinedResponse.faceConfidence,
+        });
 
         // Llamar callbacks si están disponibles (usando refs)
+        // Mantener compatibilidad con el tipo original para onFrameSent
         if (onFrameSentRef.current) {
-          onFrameSentRef.current(response);
+          onFrameSentRef.current(blinkResponse);
         }
+        // onBlink ahora recibe la respuesta combinada
         if (onBlinkRef.current) {
-          onBlinkRef.current(response);
+          onBlinkRef.current(combinedResponse);
         }
       } catch (error) {
         console.error("[VideoCanvasBlink] ❌ Error capturando frame:", error);

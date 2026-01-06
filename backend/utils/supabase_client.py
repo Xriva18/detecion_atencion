@@ -13,5 +13,7 @@ def get_supabase_client() -> Client:
     Returns:
         Client: Cliente de Supabase configurado con las credenciales del entorno
     """
-    return create_client(settings.supabase_url, settings.supabase_key)
+    # Asegurar que la URL de Supabase tenga trailing slash para evitar errores con storage endpoint
+    supabase_url = settings.supabase_url.rstrip('/') + '/'
+    return create_client(supabase_url, settings.supabase_key)
 

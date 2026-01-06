@@ -46,3 +46,15 @@ export interface BlinkDetectionRequest {
 export interface BlinkCountResponse {
   blink_count: number;
 }
+
+/**
+ * Respuesta combinada que incluye detección de rostro y parpadeo
+ */
+export interface CombinedDetectionResponse {
+  faceDetected: boolean;
+  blinking: boolean;
+  left_ear: number;
+  right_ear: number;
+  faceConfidence?: number;
+  faceCoordinates?: Coordinates | null;
+}

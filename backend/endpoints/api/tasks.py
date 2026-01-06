@@ -10,10 +10,46 @@ from services.ai_service import ai_service
 from services.video_service import video_service
 from supabase import create_client, Client
 import uuid
+import re
+import os
 
 router = APIRouter(prefix="/tasks", tags=["Tareas/Videos"])
 
-supabase: Client = create_client(settings.supabase_url, settings.supabase_key)
+# Asegurar que la URL de Supabase tenga trailing slash
+supabase_url = settings.supabase_url.rstrip('/') + '/'
+supabase: Client = create_client(supabase_url, settings.supabase_key)
+
+
+def sanitize_filename(filename: str) -> str:
+    """
+    Sanitiza el nombre del archivo para que sea válido como clave de Supabase Storage.
+    Elimina o reemplaza caracteres especiales que pueden causar errores InvalidKey.
+    """
+    if not filename:
+        return "video.mp4"
+    
+    # Obtener el nombre base y la extensión
+    name, ext = os.path.splitext(filename)
+    
+    # Reemplazar caracteres especiales y espacios
+    # Mantener solo letras, números, guiones, guiones bajos y puntos
+    sanitized_name = re.sub(r'[^a-zA-Z0-9._-]', '_', name)
+    
+    # Eliminar múltiples guiones bajos consecutivos
+    sanitized_name = re.sub(r'_+', '_', sanitized_name)
+    
+    # Eliminar guiones bajos al inicio y final
+    sanitized_name = sanitized_name.strip('_')
+    
+    # Si el nombre quedó vacío, usar un nombre por defecto
+    if not sanitized_name:
+        sanitized_name = "video"
+    
+    # Limitar la longitud del nombre (máximo 200 caracteres)
+    if len(sanitized_name) > 200:
+        sanitized_name = sanitized_name[:200]
+    
+    return f"{sanitized_name}{ext}"
 
 
 class TaskCreate(BaseModel):
@@ -83,7 +119,9 @@ async def upload_task_video(
         local_path = await video_service.save_upload_locally(video)
         
         # 2. Subir a Supabase Storage
-        file_name = f"{uuid.uuid4()}_{video.filename}"
+        # Sanitizar el nombre del archivo para evitar caracteres especiales
+        sanitized_filename = sanitize_filename(video.filename)
+        file_name = f"{uuid.uuid4()}_{sanitized_filename}"
         with open(local_path, "rb") as f:
             storage_response = supabase.storage.from_("videos").upload(
                 file_name, 
