@@ -40,6 +40,10 @@ export default function VerVideoPage() {
   );
   const [faceDetected, setFaceDetected] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [pausedTime, setPausedTime] = useState(0); // Tiempo total acumulado en pausa en segundos
+  const [currentPauseElapsed, setCurrentPauseElapsed] = useState(0); // Tiempo transcurrido en la pausa actual
+  const pauseStartTimeRef = useRef<number | null>(null);
+  const pausedTimeIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lowAttentionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Sesión ID
@@ -250,6 +254,74 @@ export default function VerVideoPage() {
     if (!sessionId) startSession();
   };
 
+  // Callback para manejar cambios en isPlaying y acumular tiempo en pausa
+  const handlePlayingChange = (playing: boolean) => {
+    if (playing) {
+      // Cuando se reanuda, acumular el tiempo de la pausa actual
+      if (pauseStartTimeRef.current !== null) {
+        const elapsed = currentPauseElapsed;
+        setPausedTime((prev) => prev + elapsed);
+        setCurrentPauseElapsed(0);
+        pauseStartTimeRef.current = null;
+      }
+      // Detener intervalo
+      if (pausedTimeIntervalRef.current) {
+        clearInterval(pausedTimeIntervalRef.current);
+        pausedTimeIntervalRef.current = null;
+      }
+    } else {
+      // Cuando se pausa, iniciar contador
+      if (pauseStartTimeRef.current === null) {
+        pauseStartTimeRef.current = Date.now();
+        setCurrentPauseElapsed(0);
+      }
+      // Actualizar contador cada segundo para mostrar tiempo en tiempo real
+      if (!pausedTimeIntervalRef.current) {
+        pausedTimeIntervalRef.current = setInterval(() => {
+          if (pauseStartTimeRef.current !== null) {
+            const elapsed = Math.floor(
+              (Date.now() - pauseStartTimeRef.current) / 1000
+            );
+            setCurrentPauseElapsed(elapsed);
+          }
+        }, 1000);
+      }
+    }
+    setIsPlaying(playing);
+  };
+
+  // Limpiar intervalo al desmontar
+  useEffect(() => {
+    return () => {
+      if (pausedTimeIntervalRef.current) {
+        clearInterval(pausedTimeIntervalRef.current);
+        pausedTimeIntervalRef.current = null;
+      }
+    };
+  }, []);
+
+  // Limpiar intervalos al desmontar
+  useEffect(() => {
+    return () => {
+      if (pausedTimeIntervalRef.current) {
+        clearInterval(pausedTimeIntervalRef.current);
+      }
+    };
+  }, []);
+
+  const formatPausedTime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (hours > 0) {
+      return `${hours}:${mins.toString().padStart(2, "0")}:${secs
+        .toString()
+        .padStart(2, "0")}`;
+    }
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
   const handleFinish = async () => {
     let activeSessionId = sessionId;
 
@@ -333,7 +405,7 @@ export default function VerVideoPage() {
           showAttentionAlert={showAttentionAlert}
           onFinish={handleFinish}
           onPlayStart={handlePlayStart}
-          onPlayingChange={setIsPlaying}
+          onPlayingChange={handlePlayingChange}
         />
 
         {/* Sidebar (Right) */}
@@ -413,6 +485,23 @@ export default function VerVideoPage() {
                     </span>
                     <span>{videoData.professor}</span>
                   </div>
+                </div>
+              </div>
+
+              {/* Contador de tiempo en pausa */}
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[18px] text-gray-600">
+                      pause_circle
+                    </span>
+                    <span className="text-sm font-medium text-gray-700">
+                      Tiempo en pausa:
+                    </span>
+                  </div>
+                  <span className="text-sm font-bold text-gray-900">
+                    {formatPausedTime(pausedTime + currentPauseElapsed)}
+                  </span>
                 </div>
               </div>
             </div>
