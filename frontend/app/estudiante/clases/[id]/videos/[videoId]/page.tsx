@@ -4,6 +4,18 @@ import { useState, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import api from "@/services/api";
 import VideoCanvasBlink from "@/components/Camera/VideoCanvasBlink";
+import type { BlinkDetectionResponse } from "@/types/detection";
+
+interface VideoData {
+  id: string;
+  title: string;
+  description: string;
+  videoUrl: string;
+  videoSummary?: string;
+  className: string;
+  professor: string;
+  duration: string;
+}
 
 export default function VerVideoPage() {
   const params = useParams();
@@ -12,7 +24,7 @@ export default function VerVideoPage() {
   const videoId = params.videoId as string;
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [videoData, setVideoData] = useState<any>(null);
+  const [videoData, setVideoData] = useState<VideoData | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -34,7 +46,6 @@ export default function VerVideoPage() {
   const lowAttentionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [showControls, setShowControls] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [volume, setVolume] = useState(1);
   const [playbackRate, setPlaybackRate] = useState(1);
   const hideControlsTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -49,12 +60,17 @@ export default function VerVideoPage() {
 
   // Inicializar cámara
   useEffect(() => {
+    let currentStream: MediaStream | null = null;
+    // Copiar referencia del video al inicio del efecto
+    const currentVideoRef = videoRef.current;
+
     const initCamera = async () => {
       try {
         const mediaStream = await navigator.mediaDevices.getUserMedia({
           video: { width: 640, height: 480 },
           audio: false,
         });
+        currentStream = mediaStream;
         setStream(mediaStream);
       } catch (err) {
         console.error("Error accediendo a la cámara:", err);
@@ -64,8 +80,8 @@ export default function VerVideoPage() {
 
     // Cleanup
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
+      if (currentStream) {
+        currentStream.getTracks().forEach((track) => track.stop());
       }
       if (lowAttentionTimerRef.current) {
         clearTimeout(lowAttentionTimerRef.current);
@@ -77,10 +93,10 @@ export default function VerVideoPage() {
         });
         playPromiseRef.current = null;
       }
-      if (videoRef.current) {
-        videoRef.current.pause();
-        videoRef.current.src = "";
-        videoRef.current.load();
+      if (currentVideoRef) {
+        currentVideoRef.pause();
+        currentVideoRef.src = "";
+        currentVideoRef.load();
       }
     };
   }, []);
@@ -90,14 +106,15 @@ export default function VerVideoPage() {
     const fetchData = async () => {
       try {
         // Cancelar cualquier reproducción anterior
-        if (videoRef.current && playPromiseRef.current) {
+        const videoElement = videoRef.current;
+        if (videoElement && playPromiseRef.current) {
           try {
             await playPromiseRef.current;
-          } catch (e) {
+          } catch {
             // Ignorar errores de cancelación
           }
-          videoRef.current.pause();
-          videoRef.current.load(); // Recargar el video
+          videoElement.pause();
+          videoElement.load(); // Recargar el video
         }
 
         setIsVideoReady(false);
@@ -111,7 +128,7 @@ export default function VerVideoPage() {
 
         // 2. Obtener detalles de la clase (para nombre y profesor)
         let className = "Clase";
-        let professorName = "Profesor";
+        const professorName = "Profesor";
 
         if (task && task.class_id) {
           try {
@@ -162,7 +179,7 @@ export default function VerVideoPage() {
   const blinkHistoryRef = useRef<boolean[]>([]);
 
   // Callback del componente de detección de parpadeos/atención
-  const handleAttentionUpdate = (data: any) => {
+  const handleAttentionUpdate = (data: BlinkDetectionResponse) => {
     // La API devuelve: { blinking: boolean, left_ear: number, right_ear: number }
     // blinking: true = ojos cerrados/parpadeando (EAR < 1.55) = NO atento
     // blinking: false = ojos abiertos (EAR >= 1.55) = SÍ atento
@@ -250,7 +267,7 @@ export default function VerVideoPage() {
       if (playPromiseRef.current) {
         try {
           await playPromiseRef.current;
-        } catch (e) {
+        } catch {
           // Ignorar errores de cancelación
         }
         playPromiseRef.current = null;
@@ -267,7 +284,7 @@ export default function VerVideoPage() {
         if (playPromiseRef.current) {
           try {
             await playPromiseRef.current;
-          } catch (e) {
+          } catch {
             // Ignorar errores de cancelación
           }
         }
@@ -278,11 +295,12 @@ export default function VerVideoPage() {
         setIsPlaying(true);
         if (!sessionId) startSession();
         playPromiseRef.current = null;
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Manejar errores de reproducción
-        if (error.name === "AbortError") {
+        const err = error as { name?: string; message?: string };
+        if (err.name === "AbortError") {
           console.log("Reproducción cancelada (nuevo video cargándose)");
-        } else if (error.name === "NotAllowedError") {
+        } else if (err.name === "NotAllowedError") {
           console.error(
             "Reproducción bloqueada por el navegador (autoplay policy)"
           );
@@ -290,7 +308,7 @@ export default function VerVideoPage() {
             "Por favor, haz clic en el video para permitir la reproducción"
           );
         } else {
-          console.error("Error al reproducir el video:", error);
+          console.error("Error al reproducir el video:", err);
         }
         setIsPlaying(false);
         playPromiseRef.current = null;
@@ -350,8 +368,6 @@ export default function VerVideoPage() {
       setPlaybackRate(rate);
     }
   };
-
-  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
   const handleTimeUpdate = () => {
     if (videoRef.current) setCurrentTime(videoRef.current.currentTime);
@@ -642,11 +658,7 @@ export default function VerVideoPage() {
         </div>
 
         {/* Sidebar (Right) */}
-        <aside
-          className={`w-80 bg-white border-l border-[#e5e7eb] flex flex-col shrink-0 z-20 fixed right-0 top-16 h-[calc(100vh-4rem)] lg:relative lg:top-0 lg:h-auto transition-transform duration-300 ${
-            isSidebarOpen ? "translate-x-0" : "translate-x-full"
-          } lg:flex`}
-        >
+        <aside className="w-80 bg-white border-l border-[#e5e7eb] flex flex-col shrink-0 z-20 fixed right-0 top-16 h-[calc(100vh-4rem)] lg:relative lg:top-0 lg:h-auto transition-transform duration-300 translate-x-0 lg:flex">
           {/* User Camera Preview */}
           <div className="p-4 border-b border-[#e5e7eb]">
             <h3 className="text-xs font-bold text-gray-500 uppercase mb-2">
