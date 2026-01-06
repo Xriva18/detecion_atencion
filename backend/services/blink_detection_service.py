@@ -36,8 +36,8 @@ class BlinkDetectionService:
             static_image_mode=static_image_mode,
             max_num_faces=max_num_faces,
             refine_landmarks=True,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
+            min_detection_confidence=settings.face_mesh_min_detection_confidence,
+            min_tracking_confidence=settings.face_mesh_min_tracking_confidence
         )
         self.ear_threshold = settings.ear_threshold
     
