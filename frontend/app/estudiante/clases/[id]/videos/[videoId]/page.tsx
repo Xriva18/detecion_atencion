@@ -20,11 +20,17 @@ export default function VerVideoPage() {
   const playPromiseRef = useRef<Promise<void> | null>(null);
 
   // Estados de Atención
-  const [attentionLevel, setAttentionLevel] = useState<"Alto" | "Medio" | "Bajo">("Alto");
+  const [attentionLevel, setAttentionLevel] = useState<
+    "Alto" | "Medio" | "Bajo"
+  >("Alto");
   const [attentionScore, setAttentionScore] = useState(1.0); // 0.0 a 1.0
-  const [accumulatedAttention, setAccumulatedAttention] = useState<number[]>([]);
+  const [accumulatedAttention, setAccumulatedAttention] = useState<number[]>(
+    []
+  );
   const [showAttentionAlert, setShowAttentionAlert] = useState(false);
-  const [attentionMessage, setAttentionMessage] = useState("¡Mantén tu atención en el video!");
+  const [attentionMessage, setAttentionMessage] = useState(
+    "¡Mantén tu atención en el video!"
+  );
   const lowAttentionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [showControls, setShowControls] = useState(false);
@@ -47,7 +53,7 @@ export default function VerVideoPage() {
       try {
         const mediaStream = await navigator.mediaDevices.getUserMedia({
           video: { width: 640, height: 480 },
-          audio: false
+          audio: false,
         });
         setStream(mediaStream);
       } catch (err) {
@@ -59,7 +65,7 @@ export default function VerVideoPage() {
     // Cleanup
     return () => {
       if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
       }
       if (lowAttentionTimerRef.current) {
         clearTimeout(lowAttentionTimerRef.current);
@@ -93,7 +99,7 @@ export default function VerVideoPage() {
           videoRef.current.pause();
           videoRef.current.load(); // Recargar el video
         }
-        
+
         setIsVideoReady(false);
         setIsPlaying(false);
         setCurrentTime(0);
@@ -126,7 +132,7 @@ export default function VerVideoPage() {
           videoSummary: task.video_summary, // Importante para el quiz
           className: className,
           professor: professorName,
-          duration: "10:00" // Placeholder, o podrías obtenerlo de los metadatos del video
+          duration: "10:00", // Placeholder, o podrías obtenerlo de los metadatos del video
         });
       } catch (error) {
         console.error("Error fetching video data:", error);
@@ -141,9 +147,9 @@ export default function VerVideoPage() {
   // Manejar inicio de sesión de estudio
   const startSession = async () => {
     try {
-      const res = await api.post('/sessions/start', {
+      const res = await api.post("/sessions/start", {
         student_id: userId,
-        task_id: videoId
+        task_id: videoId,
       });
       setSessionId(res.data.session.id);
       console.log("Sesión iniciada:", res.data.session.id);
@@ -169,7 +175,7 @@ export default function VerVideoPage() {
     }
 
     // Contar cuántos frames de "no atención" en el historial
-    const notAttentiveCount = blinkHistoryRef.current.filter(b => b).length;
+    const notAttentiveCount = blinkHistoryRef.current.filter((b) => b).length;
     const historyLength = blinkHistoryRef.current.length;
 
     // Calcular score: 1.0 = muy atento, 0.0 = muy distraído
@@ -182,7 +188,7 @@ export default function VerVideoPage() {
       // 0 no atento de 10 = score 1.0
       // 5 no atento de 10 = score 0.5
       // 10 no atento de 10 = score 0.0
-      currentScore = 1.0 - (notAttentiveCount / historyLength);
+      currentScore = 1.0 - notAttentiveCount / historyLength;
     }
 
     // Suavizado exponencial más rápido para mejor respuesta
@@ -190,7 +196,13 @@ export default function VerVideoPage() {
     setAttentionScore(newScore);
 
     // Debug logging
-    console.log(`[Atención] blinking=${data.blinking}, noAtento:${notAttentiveCount}/${historyLength}, score=${newScore.toFixed(2)}`);
+    console.log(
+      `[Atención] blinking=${
+        data.blinking
+      }, noAtento:${notAttentiveCount}/${historyLength}, score=${newScore.toFixed(
+        2
+      )}`
+    );
 
     // Actualizar nivel de atención y mensajes
     let newLevel: "Alto" | "Medio" | "Bajo";
@@ -223,7 +235,7 @@ export default function VerVideoPage() {
 
     // Acumular datos de atención mientras se reproduce
     if (isPlaying) {
-      setAccumulatedAttention(prev => [...prev, currentScore]);
+      setAccumulatedAttention((prev) => [...prev, currentScore]);
     }
   };
 
@@ -268,11 +280,15 @@ export default function VerVideoPage() {
         playPromiseRef.current = null;
       } catch (error: any) {
         // Manejar errores de reproducción
-        if (error.name === 'AbortError') {
+        if (error.name === "AbortError") {
           console.log("Reproducción cancelada (nuevo video cargándose)");
-        } else if (error.name === 'NotAllowedError') {
-          console.error("Reproducción bloqueada por el navegador (autoplay policy)");
-          alert("Por favor, haz clic en el video para permitir la reproducción");
+        } else if (error.name === "NotAllowedError") {
+          console.error(
+            "Reproducción bloqueada por el navegador (autoplay policy)"
+          );
+          alert(
+            "Por favor, haz clic en el video para permitir la reproducción"
+          );
         } else {
           console.error("Error al reproducir el video:", error);
         }
@@ -288,9 +304,9 @@ export default function VerVideoPage() {
     if (!activeSessionId) {
       // Si no hay sesión iniciada, intentar iniciarla ahora para poder generar el quiz
       try {
-        const res = await api.post('/sessions/start', {
+        const res = await api.post("/sessions/start", {
           student_id: userId,
-          task_id: videoId
+          task_id: videoId,
         });
         activeSessionId = res.data.session.id;
         setSessionId(activeSessionId);
@@ -301,14 +317,16 @@ export default function VerVideoPage() {
       }
     }
 
-    const avgAttention = accumulatedAttention.length > 0
-      ? accumulatedAttention.reduce((a, b) => a + b, 0) / accumulatedAttention.length
-      : 1.0;
+    const avgAttention =
+      accumulatedAttention.length > 0
+        ? accumulatedAttention.reduce((a, b) => a + b, 0) /
+          accumulatedAttention.length
+        : 1.0;
 
     try {
-      const res = await api.post('/sessions/end', {
+      const res = await api.post("/sessions/end", {
         session_id: activeSessionId,
-        attention_score_avg: avgAttention
+        attention_score_avg: avgAttention,
       });
       const { quiz_id } = res.data;
       router.push(`/estudiante/cuestionario/${quiz_id}`);
@@ -362,7 +380,9 @@ export default function VerVideoPage() {
     }
   };
 
-  const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+  const handleVideoError = (
+    e: React.SyntheticEvent<HTMLVideoElement, Event>
+  ) => {
     console.error("Error en el video:", e);
     setIsVideoReady(false);
     setIsPlaying(false);
@@ -383,7 +403,8 @@ export default function VerVideoPage() {
   };
 
   const handleFullscreen = () => {
-    if (videoRef.current?.requestFullscreen) videoRef.current.requestFullscreen();
+    if (videoRef.current?.requestFullscreen)
+      videoRef.current.requestFullscreen();
   };
 
   const formatTime = (seconds: number) => {
@@ -392,7 +413,8 @@ export default function VerVideoPage() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  if (!videoData) return <div className="p-10 text-center text-white">Cargando video...</div>;
+  if (!videoData)
+    return <div className="p-10 text-center text-white">Cargando video...</div>;
 
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-background-light text-[#111318]">
@@ -471,25 +493,28 @@ export default function VerVideoPage() {
             {/* Attention Level Indicator */}
             <div className="absolute top-4 right-4 z-30 flex flex-col gap-2">
               <div
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all duration-300 ${attentionLevel === "Alto"
-                  ? "bg-green-100 text-green-700 border border-green-200"
-                  : attentionLevel === "Medio"
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all duration-300 ${
+                  attentionLevel === "Alto"
+                    ? "bg-green-100 text-green-700 border border-green-200"
+                    : attentionLevel === "Medio"
                     ? "bg-yellow-100 text-yellow-700 border border-yellow-200"
                     : "bg-red-100 text-red-700 border border-red-200 animate-pulse"
-                  }`}
+                }`}
               >
                 <span className="material-symbols-outlined text-sm">
                   {attentionLevel === "Alto"
                     ? "visibility"
                     : attentionLevel === "Medio"
-                      ? "visibility_off"
-                      : "warning"}
+                    ? "visibility_off"
+                    : "warning"}
                 </span>
                 <span>Atención: {attentionLevel}</span>
               </div>
 
               {/* Mensaje dinámico */}
-              <div className={`px-3 py-1.5 rounded-lg text-xs font-medium bg-black/70 text-white backdrop-blur-sm transition-all duration-300`}>
+              <div
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium bg-black/70 text-white backdrop-blur-sm transition-all duration-300`}
+              >
                 {attentionMessage}
               </div>
             </div>
@@ -515,15 +540,18 @@ export default function VerVideoPage() {
 
             {/* Video Controls Overlay */}
             <div
-              className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/60 transition-opacity duration-300 flex flex-col justify-end p-6 z-10 ${showControls || !isPlaying ? "opacity-100" : "opacity-0"
-                }`}
+              className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/60 transition-opacity duration-300 flex flex-col justify-end p-6 z-10 ${
+                showControls || !isPlaying ? "opacity-100" : "opacity-0"
+              }`}
             >
               {/* Progress Bar */}
               <div className="w-full h-1.5 bg-white/20 rounded-full mb-4 cursor-pointer relative group/progress">
                 <div
                   className="absolute top-0 left-0 h-full bg-primary rounded-full relative"
                   style={{
-                    width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`,
+                    width: `${
+                      duration > 0 ? (currentTime / duration) * 100 : 0
+                    }%`,
                   }}
                 >
                   <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full scale-0 group-hover/progress:scale-100 transition-transform shadow-md"></div>
@@ -615,12 +643,15 @@ export default function VerVideoPage() {
 
         {/* Sidebar (Right) */}
         <aside
-          className={`w-80 bg-white border-l border-[#e5e7eb] flex flex-col shrink-0 z-20 fixed right-0 top-16 h-[calc(100vh-4rem)] lg:relative lg:top-0 lg:h-auto transition-transform duration-300 ${isSidebarOpen ? "translate-x-0" : "translate-x-full"
-            } lg:flex`}
+          className={`w-80 bg-white border-l border-[#e5e7eb] flex flex-col shrink-0 z-20 fixed right-0 top-16 h-[calc(100vh-4rem)] lg:relative lg:top-0 lg:h-auto transition-transform duration-300 ${
+            isSidebarOpen ? "translate-x-0" : "translate-x-full"
+          } lg:flex`}
         >
           {/* User Camera Preview */}
           <div className="p-4 border-b border-[#e5e7eb]">
-            <h3 className="text-xs font-bold text-gray-500 uppercase mb-2">Monitor de Atención</h3>
+            <h3 className="text-xs font-bold text-gray-500 uppercase mb-2">
+              Monitor de Atención
+            </h3>
             <div className="w-full aspect-video bg-black/80 rounded-lg border-2 border-[#e5e7eb] overflow-hidden shadow-lg relative">
               <VideoCanvasBlink
                 isActive={true}
@@ -629,19 +660,39 @@ export default function VerVideoPage() {
                 width={280}
                 height={210}
               />
-              <div className={`absolute bottom-0 left-0 right-0 px-3 py-2 flex flex-col items-center gap-1 transition-all duration-300 ${attentionLevel === 'Alto' ? 'bg-green-900/70' :
-                attentionLevel === 'Medio' ? 'bg-yellow-900/70' : 'bg-red-900/70'
-                }`}>
+              <div
+                className={`absolute bottom-0 left-0 right-0 px-3 py-2 flex flex-col items-center gap-1 transition-all duration-300 ${
+                  attentionLevel === "Alto"
+                    ? "bg-green-900/70"
+                    : attentionLevel === "Medio"
+                    ? "bg-yellow-900/70"
+                    : "bg-red-900/70"
+                }`}
+              >
                 <div className="flex items-center gap-2">
-                  <div className={`w-2.5 h-2.5 rounded-full ${attentionLevel === 'Alto' ? 'bg-green-400 animate-pulse' :
-                    attentionLevel === 'Medio' ? 'bg-yellow-400 animate-pulse' :
-                      'bg-red-400 animate-ping'
-                    }`}></div>
-                  <span className={`text-xs font-bold uppercase tracking-wide ${attentionLevel === 'Alto' ? 'text-green-300' :
-                    attentionLevel === 'Medio' ? 'text-yellow-300' : 'text-red-300'
-                    }`}>
-                    {attentionLevel === 'Alto' ? '✓ Atento' :
-                      attentionLevel === 'Medio' ? '⚠ Atención Media' : '⚠ Distraído'}
+                  <div
+                    className={`w-2.5 h-2.5 rounded-full ${
+                      attentionLevel === "Alto"
+                        ? "bg-green-400 animate-pulse"
+                        : attentionLevel === "Medio"
+                        ? "bg-yellow-400 animate-pulse"
+                        : "bg-red-400 animate-ping"
+                    }`}
+                  ></div>
+                  <span
+                    className={`text-xs font-bold uppercase tracking-wide ${
+                      attentionLevel === "Alto"
+                        ? "text-green-300"
+                        : attentionLevel === "Medio"
+                        ? "text-yellow-300"
+                        : "text-red-300"
+                    }`}
+                  >
+                    {attentionLevel === "Alto"
+                      ? "✓ Atento"
+                      : attentionLevel === "Medio"
+                      ? "⚠ Atención Media"
+                      : "⚠ Distraído"}
                   </span>
                 </div>
               </div>
@@ -655,7 +706,9 @@ export default function VerVideoPage() {
                 <h3 className="text-lg font-bold text-[#111318] mb-2">
                   {videoData.title}
                 </h3>
-                <p className="text-sm text-gray-600 mb-4">{videoData.description}</p>
+                <p className="text-sm text-gray-600 mb-4">
+                  {videoData.description}
+                </p>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm text-[#616f89]">
                     <span className="material-symbols-outlined text-[18px]">
@@ -685,7 +738,8 @@ export default function VerVideoPage() {
                       Nota de Privacidad
                     </p>
                     <p className="text-[10px] text-blue-800 leading-relaxed">
-                      Se están tomando datos biométricos para evaluar tu atención.
+                      Se están tomando datos biométricos para evaluar tu
+                      atención.
                     </p>
                   </div>
                 </div>
@@ -706,4 +760,3 @@ export default function VerVideoPage() {
     </div>
   );
 }
-
