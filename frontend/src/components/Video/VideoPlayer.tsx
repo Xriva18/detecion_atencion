@@ -11,6 +11,7 @@ interface VideoPlayerProps {
   onFinish: () => void;
   onPlayStart?: () => void;
   onPlayingChange?: (isPlaying: boolean) => void;
+  onDurationChange?: (duration: number) => void;
 }
 
 export default function VideoPlayer({
@@ -22,6 +23,7 @@ export default function VideoPlayer({
   onFinish,
   onPlayStart,
   onPlayingChange,
+  onDurationChange,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -187,8 +189,12 @@ export default function VideoPlayer({
 
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
-      setDuration(videoRef.current.duration);
+      const videoDuration = videoRef.current.duration;
+      setDuration(videoDuration);
       setIsVideoReady(true);
+      if (onDurationChange) {
+        onDurationChange(videoDuration);
+      }
     }
   };
 

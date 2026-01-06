@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import api from "@/services/api";
 import VideoCanvasBlink from "@/components/Camera/VideoCanvasBlink";
 import VideoPlayer from "@/components/Video/VideoPlayer";
+import SessionSummaryModal from "@/components/Video/SessionSummaryModal";
 import type { CombinedDetectionResponse } from "@/types/detection";
 
 interface VideoData {
@@ -42,6 +43,8 @@ export default function VerVideoPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [pausedTime, setPausedTime] = useState(0); // Tiempo total acumulado en pausa en segundos
   const [currentPauseElapsed, setCurrentPauseElapsed] = useState(0); // Tiempo transcurrido en la pausa actual
+  const [videoDuration, setVideoDuration] = useState(0); // Duración total del video en segundos
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
   const pauseStartTimeRef = useRef<number | null>(null);
   const pausedTimeIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lowAttentionTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -322,7 +325,14 @@ export default function VerVideoPage() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleFinish = async () => {
+  const handleFinish = () => {
+    // Mostrar modal de resumen en lugar de finalizar directamente
+    setShowSummaryModal(true);
+  };
+
+  const handleConfirmFinish = async () => {
+    setShowSummaryModal(false);
+    
     let activeSessionId = sessionId;
 
     if (!activeSessionId) {
@@ -406,6 +416,7 @@ export default function VerVideoPage() {
           onFinish={handleFinish}
           onPlayStart={handlePlayStart}
           onPlayingChange={handlePlayingChange}
+          onDurationChange={setVideoDuration}
         />
 
         {/* Sidebar (Right) */}
@@ -537,6 +548,16 @@ export default function VerVideoPage() {
           </div>
         </aside>
       </main>
+
+      {/* Modal de resumen */}
+      <SessionSummaryModal
+        isOpen={showSummaryModal}
+        onClose={() => setShowSummaryModal(false)}
+        onConfirm={handleConfirmFinish}
+        pausedTime={pausedTime + currentPauseElapsed}
+        accumulatedAttention={accumulatedAttention}
+        totalVideoTime={videoDuration || 1} // Evitar división por cero
+      />
     </div>
   );
 }
