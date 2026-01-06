@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     
     # Configuración de MediaPipe
     face_detection_model_selection: int = 0  # 0 para modelo corto, 1 para modelo completo
-    face_detection_min_confidence: float = 0.7  # Confianza mínima para detectar rostro (0.0-1.0). Mayor valor = menos falsos positivos
+    face_detection_min_confidence: float = 0.8  # Confianza mínima para detectar rostro (0.0-1.0). Mayor valor = menos falsos positivos
     
     # Configuración de Face Mesh (para detección de parpadeos)
     face_mesh_min_detection_confidence: float = 0.7  # Confianza mínima para detectar landmarks faciales
