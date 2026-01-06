@@ -16,6 +16,8 @@ export default function VerVideoPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isVideoReady, setIsVideoReady] = useState(false);
+  const playPromiseRef = useRef<Promise<void> | null>(null);
 
   // Estados de Atención
   const [attentionLevel, setAttentionLevel] = useState<"Alto" | "Medio" | "Bajo">("Alto");
@@ -62,6 +64,18 @@ export default function VerVideoPage() {
       if (lowAttentionTimerRef.current) {
         clearTimeout(lowAttentionTimerRef.current);
       }
+      // Cancelar cualquier reproducción pendiente
+      if (playPromiseRef.current) {
+        playPromiseRef.current.catch(() => {
+          // Ignorar errores de cancelación
+        });
+        playPromiseRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.src = "";
+        videoRef.current.load();
+      }
     };
   }, []);
 
@@ -69,6 +83,22 @@ export default function VerVideoPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Cancelar cualquier reproducción anterior
+        if (videoRef.current && playPromiseRef.current) {
+          try {
+            await playPromiseRef.current;
+          } catch (e) {
+            // Ignorar errores de cancelación
+          }
+          videoRef.current.pause();
+          videoRef.current.load(); // Recargar el video
+        }
+        
+        setIsVideoReady(false);
+        setIsPlaying(false);
+        setCurrentTime(0);
+        setDuration(0);
+
         // 1. Obtener detalles de la tarea/video
         const taskRes = await api.get(`/tasks/${videoId}`);
         const task = taskRes.data;
@@ -197,15 +227,58 @@ export default function VerVideoPage() {
     }
   };
 
-  const handlePlayPause = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
-        if (!sessionId) startSession();
+  const handlePlayPause = async () => {
+    if (!videoRef.current) return;
+
+    if (isPlaying) {
+      // Pausar el video
+      videoRef.current.pause();
+      setIsPlaying(false);
+      // Cancelar cualquier promesa de reproducción pendiente
+      if (playPromiseRef.current) {
+        try {
+          await playPromiseRef.current;
+        } catch (e) {
+          // Ignorar errores de cancelación
+        }
+        playPromiseRef.current = null;
       }
-      setIsPlaying(!isPlaying);
+    } else {
+      // Reproducir el video
+      if (!isVideoReady) {
+        console.log("Video aún no está listo para reproducir");
+        return;
+      }
+
+      try {
+        // Cancelar cualquier reproducción anterior pendiente
+        if (playPromiseRef.current) {
+          try {
+            await playPromiseRef.current;
+          } catch (e) {
+            // Ignorar errores de cancelación
+          }
+        }
+
+        // Intentar reproducir
+        playPromiseRef.current = videoRef.current.play();
+        await playPromiseRef.current;
+        setIsPlaying(true);
+        if (!sessionId) startSession();
+        playPromiseRef.current = null;
+      } catch (error: any) {
+        // Manejar errores de reproducción
+        if (error.name === 'AbortError') {
+          console.log("Reproducción cancelada (nuevo video cargándose)");
+        } else if (error.name === 'NotAllowedError') {
+          console.error("Reproducción bloqueada por el navegador (autoplay policy)");
+          alert("Por favor, haz clic en el video para permitir la reproducción");
+        } else {
+          console.error("Error al reproducir el video:", error);
+        }
+        setIsPlaying(false);
+        playPromiseRef.current = null;
+      }
     }
   };
 
@@ -267,7 +340,38 @@ export default function VerVideoPage() {
   };
 
   const handleLoadedMetadata = () => {
-    if (videoRef.current) setDuration(videoRef.current.duration);
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+      setIsVideoReady(true);
+    }
+  };
+
+  const handleCanPlay = () => {
+    setIsVideoReady(true);
+  };
+
+  const handleLoadStart = () => {
+    setIsVideoReady(false);
+    setIsPlaying(false);
+    // Cancelar cualquier reproducción pendiente
+    if (playPromiseRef.current) {
+      playPromiseRef.current.catch(() => {
+        // Ignorar errores de cancelación
+      });
+      playPromiseRef.current = null;
+    }
+  };
+
+  const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    console.error("Error en el video:", e);
+    setIsVideoReady(false);
+    setIsPlaying(false);
+    if (playPromiseRef.current) {
+      playPromiseRef.current.catch(() => {
+        // Ignorar errores
+      });
+      playPromiseRef.current = null;
+    }
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -356,8 +460,12 @@ export default function VerVideoPage() {
               className="w-full h-full object-contain"
               onTimeUpdate={handleTimeUpdate}
               onLoadedMetadata={handleLoadedMetadata}
+              onCanPlay={handleCanPlay}
+              onLoadStart={handleLoadStart}
+              onError={handleVideoError}
               onEnded={handleFinish}
               onClick={handlePlayPause}
+              preload="metadata"
             />
 
             {/* Attention Level Indicator */}
