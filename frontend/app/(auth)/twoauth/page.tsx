@@ -4,20 +4,53 @@ import { useState, useRef, useEffect, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { findUserByEmailOrUsername } from "@/data/mockUsers";
+import { createClientSupabase } from "@/utils/supabase/client";
+import { MFAService } from "@/services/auth/mfaService";
 
 function TwoAuthForm() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
+  const factorId = searchParams.get("factorId") || "";
   const router = useRouter();
   const [codes, setCodes] = useState<string[]>(["", "", "", "", "", ""]);
   const [error, setError] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isLoadingFactor, setIsLoadingFactor] = useState(true);
+  const [activeFactorId, setActiveFactorId] = useState<string | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  // Determinar si es login flow o activación
+  const isLoginFlow = !!email && !!factorId;
+
   useEffect(() => {
-    // Focus en el primer input al cargar
-    inputRefs.current[0]?.focus();
+    // Si es login flow, verificar que tenemos el factorId
+    if (isLoginFlow) {
+      setActiveFactorId(factorId);
+      setIsLoadingFactor(false);
+      inputRefs.current[0]?.focus();
+    } else {
+      // Si no es login flow, obtener el factor activo del usuario
+      loadActiveFactor();
+    }
   }, []);
+
+  const loadActiveFactor = async () => {
+    try {
+      setIsLoadingFactor(true);
+      const factor = await MFAService.getActiveFactor();
+      if (factor) {
+        setActiveFactorId(factor.id);
+      } else {
+        setError("No tienes autenticación de dos factores activa. Por favor, actívala desde tu perfil.");
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Error al cargar factor MFA";
+      setError(errorMessage);
+    } finally {
+      setIsLoadingFactor(false);
+      inputRefs.current[0]?.focus();
+    }
+  };
 
   const handleCodeChange = (index: number, value: string) => {
     // Solo permitir números
@@ -68,7 +101,7 @@ function TwoAuthForm() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -78,23 +111,50 @@ function TwoAuthForm() {
       return;
     }
 
-    // Buscar usuario por email
-    const user = email ? findUserByEmailOrUsername(email) : null;
-
-    if (!user) {
-      setError("Usuario no encontrado. Por favor, inicia sesión nuevamente.");
+    if (!activeFactorId) {
+      setError("Error: no se encontró un factor MFA activo. Por favor, intenta nuevamente.");
       return;
     }
 
-    // Simular validación del código 2FA
-    // En producción, esto se validaría con el backend
-    // Por ahora, aceptamos cualquier código de 6 dígitos para usuarios con 2FA habilitado
-    if (user.twoFactorEnabled) {
-      console.log("Código 2FA validado:", code);
-      // Simular login exitoso
-      router.push("/");
-    } else {
-      setError("Este usuario no tiene autenticación de dos factores habilitada.");
+    setIsVerifying(true);
+
+    try {
+      if (isLoginFlow) {
+        // Flujo de login: challengeAndVerify
+        await MFAService.challengeAndVerify(activeFactorId, code);
+        
+        // Obtener sesión actualizada
+        const supabase = createClientSupabase();
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          throw new Error("Error: no se pudo obtener la sesión después de la verificación");
+        }
+
+        // Redirigir según el rol
+        const userRole = session.user?.app_metadata?.role as number | undefined;
+        if (userRole === 1) {
+          window.location.href = "/admin";
+        } else if (userRole === 2) {
+          window.location.href = "/profesor";
+        } else if (userRole === 3) {
+          window.location.href = "/estudiante";
+        } else {
+          window.location.href = "/";
+        }
+      } else {
+        // Este caso no debería ocurrir desde esta página (la activación se hace desde el Header)
+        // Pero lo dejamos por si acaso
+        setError("Esta página solo es para verificación durante el login.");
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Error al verificar código MFA";
+      setError(errorMessage);
+      // Limpiar código en caso de error
+      setCodes(["", "", "", "", "", ""]);
+      inputRefs.current[0]?.focus();
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -199,6 +259,16 @@ function TwoAuthForm() {
                 para verificar tu identidad.
               </p>
 
+              {/* Loading State */}
+              {isLoadingFactor && (
+                <div className="w-full mb-4 flex items-center justify-center py-4">
+                  <span className="material-symbols-outlined text-primary animate-spin mr-2">
+                    sync
+                  </span>
+                  <p className="text-gray-600">Cargando...</p>
+                </div>
+              )}
+
               {/* Error Message */}
               {error && (
                 <div className="w-full mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
@@ -206,35 +276,52 @@ function TwoAuthForm() {
                 </div>
               )}
 
-              <div className="flex justify-center w-full mb-8">
-                <fieldset className="flex gap-2 sm:gap-3">
-                  {codes.map((code, index) => (
-                    <input
-                      key={index}
-                      ref={(el) => {
-                        inputRefs.current[index] = el;
-                      }}
-                      className="flex h-12 w-10 sm:h-14 sm:w-12 text-center bg-slate-50 border-b-2 border-slate-300 rounded-t-md focus:border-primary focus:bg-white focus:outline-none text-xl sm:text-2xl font-bold transition-all caret-primary text-slate-900"
-                      inputMode="numeric"
-                      maxLength={1}
-                      type="text"
-                      value={code}
-                      onChange={(e) => handleCodeChange(index, e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(index, e)}
-                      onPaste={index === 0 ? handlePaste : undefined}
-                    />
-                  ))}
-                </fieldset>
-              </div>
-              <button
-                type="submit"
-                className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-primary hover:bg-blue-700 text-white text-base font-bold leading-normal transition-all shadow-sm hover:shadow-md"
-              >
-                <span className="truncate">Verificar Identidad</span>
-                <span className="material-symbols-outlined text-lg ml-2">
-                  arrow_forward
-                </span>
-              </button>
+              {!isLoadingFactor && (
+                <>
+                  <div className="flex justify-center w-full mb-8">
+                    <fieldset className="flex gap-2 sm:gap-3">
+                      {codes.map((code, index) => (
+                        <input
+                          key={index}
+                          ref={(el) => {
+                            inputRefs.current[index] = el;
+                          }}
+                          className="flex h-12 w-10 sm:h-14 sm:w-12 text-center bg-slate-50 border-b-2 border-slate-300 rounded-t-md focus:border-primary focus:bg-white focus:outline-none text-xl sm:text-2xl font-bold transition-all caret-primary text-slate-900"
+                          inputMode="numeric"
+                          maxLength={1}
+                          type="text"
+                          value={code}
+                          onChange={(e) => handleCodeChange(index, e.target.value)}
+                          onKeyDown={(e) => handleKeyDown(index, e)}
+                          onPaste={index === 0 ? handlePaste : undefined}
+                          disabled={isVerifying}
+                        />
+                      ))}
+                    </fieldset>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isVerifying || codes.join("").length !== 6}
+                    className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-primary hover:bg-blue-700 text-white text-base font-bold leading-normal transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isVerifying ? (
+                      <>
+                        <span className="material-symbols-outlined text-lg mr-2 animate-spin">
+                          sync
+                        </span>
+                        <span className="truncate">Verificando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="truncate">Verificar Identidad</span>
+                        <span className="material-symbols-outlined text-lg ml-2">
+                          arrow_forward
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
               <div className="mt-6 flex flex-col items-center gap-4 w-full">
                 <Link
                   className="flex items-center gap-1.5 text-slate-500 hover:text-primary transition-colors text-sm font-medium"
