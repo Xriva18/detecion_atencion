@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import api from "@/services/api";
 import VideoCanvasBlink from "@/components/Camera/VideoCanvasBlink";
-import type { BlinkDetectionResponse } from "@/types/detection";
+import type { CombinedDetectionResponse } from "@/types/detection";
 
 interface VideoData {
   id: string;
@@ -179,7 +179,32 @@ export default function VerVideoPage() {
   const blinkHistoryRef = useRef<boolean[]>([]);
 
   // Callback del componente de detección de parpadeos/atención
-  const handleAttentionUpdate = (data: BlinkDetectionResponse) => {
+  const handleAttentionUpdate = (data: CombinedDetectionResponse) => {
+    // Verificar primero si hay rostro detectado
+    // Si no hay persona, marcar inmediatamente como distraído
+    if (!data.faceDetected) {
+      setAttentionLevel("Bajo");
+      setAttentionMessage("Persona ausente - Vuelve a la cámara ⚠️");
+      setAttentionScore(0.0);
+      setShowAttentionAlert(true);
+
+      // Agregar al historial como "no atento"
+      blinkHistoryRef.current.push(true);
+      if (blinkHistoryRef.current.length > 10) {
+        blinkHistoryRef.current.shift();
+      }
+
+      // Debug logging
+      console.log(`[Atención] Persona ausente - Marcado como distraído`);
+
+      // Acumular datos de atención mientras se reproduce
+      if (isPlaying) {
+        setAccumulatedAttention((prev) => [...prev, 0.0]);
+      }
+      return;
+    }
+
+    // Si hay rostro, usar la lógica de parpadeo
     // La API devuelve: { blinking: boolean, left_ear: number, right_ear: number }
     // blinking: true = ojos cerrados/parpadeando (EAR < 1.55) = NO atento
     // blinking: false = ojos abiertos (EAR >= 1.55) = SÍ atento
@@ -214,7 +239,7 @@ export default function VerVideoPage() {
 
     // Debug logging
     console.log(
-      `[Atención] blinking=${
+      `[Atención] faceDetected=${data.faceDetected}, blinking=${
         data.blinking
       }, noAtento:${notAttentiveCount}/${historyLength}, score=${newScore.toFixed(
         2
