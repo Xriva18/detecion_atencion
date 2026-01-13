@@ -4,6 +4,7 @@ from core.config import settings
 import json
 import asyncio
 import re
+import os
 
 class AIService:
     def __init__(self):
@@ -26,16 +27,17 @@ class AIService:
             raise Exception("Cliente IA no configurado")
 
         # Lista de modelos por prioridad. 
-        # Si el 2.0 falla por cuota, intentamos el 1.5 que es más estable.
-        models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash"]
+        # Usamos SOLO gemini-2.5-flash como solicitó el usuario
+        models_to_try = ["gemini-2.5-flash"]
         
         last_error = None
 
         for model_name in models_to_try:
-            # Intentaremos hasta 3 veces por cada modelo
-            for attempt in range(3):
+            # AUMENTO DE INTENTOS: De 3 a 5 para mayor persistencia ante errores 503/429
+            max_retries = 5
+            for attempt in range(max_retries):
                 try:
-                    print(f"[AIService] 🔄 Intentando con {model_name} (Intento {attempt+1})...")
+                    print(f"[AIService] 🔄 Intentando con {model_name} (Intento {attempt+1}/{max_retries})...")
                     
                     # Configuración para respuesta JSON si se requiere
                     config = {}
@@ -60,10 +62,11 @@ class AIService:
                     last_error = e
                     print(f"[AIService] ⚠️ Error en {model_name} intento {attempt+1}: {e}")
 
-                    # Si es error de cuota (429) o servidor sobrecargado
-                    if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
-                        wait_time = 15 * (attempt + 1) # Esperar 15s, 30s, 45s
-                        print(f"[AIService] ⏳ Cuota excedida. Esperando {wait_time} segundos...")
+                    # Si es error de cuota (429) o servidor sobrecargado (503)
+                    if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str or "503" in error_str:
+                        # Backoff exponencial limitado: 5s, 10s, 20s, 30s, 30s...
+                        wait_time = min(30, 5 * (2 ** attempt)) 
+                        print(f"[AIService] ⏳ IA ocupada/cuota. Esperando {wait_time} segundos para reintentar...")
                         await asyncio.sleep(wait_time)
                     else:
                         # Si es otro tipo de error (ej. prompt invalido), no reintentamos este modelo
@@ -92,6 +95,10 @@ class AIService:
             print(f"[AIService] ❌ Error final generando resumen: {e}")
             return "No se pudo generar el resumen automáticamente."
 
+    async def generate_summary(self, text: str) -> str:
+        """Alias para mantener compatibilidad con endpoint"""
+        return await self.summarize_text(text)
+
     async def generate_quiz(self, text: str, attention_score: float, num_questions: int = 5) -> list:
         """
         Generates a quiz based on the text.
@@ -110,22 +117,27 @@ class AIService:
             difficulty = "simple (memoria)"
 
         prompt = f"""
-        Actúa como un profesor. Crea un cuestionario de {num_questions} preguntas en ESPAÑOL basado en el texto.
+        Actúa como un profesor experto y crea un examen profesional de {num_questions} preguntas de selección múltiple en ESPAÑOL.
         
-        Contexto:
-        - Dificultad: {difficulty}
-        - Texto base: {text[:10000]}
+        INSTRUCCIONES:
+        1. Las preguntas deben basarse EXCLUSIVAMENTE en el contenido del siguiente texto (que es la transcripción de un video educativo).
+        2. NO uses frases como "según el texto", "en el fragmento", "el orador dice". En su lugar, usa frases naturales como "según lo visto en el video", "en la clase", o simplemente formula la pregunta directamente.
+        3. El tono debe ser formal, académico y desafiante, adecuado para un entorno universitario.
+        4. Opciones de respuesta plausibles, evitando obviedades.
+        
+        Contexto del Estudiante:
+        - Nivel de Atención Detectado: {difficulty}
+        - Transcripción del Video: 
+        "{text[:25000]}" 
 
-        FORMATO REQUERIDO:
-        Devuelve ÚNICAMENTE un JSON Array válido. Ejemplo:
+        FORMATO RESPUESTA (JSON RAW ARRAY):
         [
           {{
-            "question": "¿Pregunta?",
-            "options": ["A", "B", "C", "D"],
-            "correct_answer": "A"
+            "question": "¿Enunciado de la pregunta?",
+            "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
+            "correct_answer": "Opción Correcta"
           }}
         ]
-        NO uses bloques de código markdown (```json). Solo el texto JSON crudo.
         """
 
         try:
@@ -150,5 +162,70 @@ class AIService:
         except Exception as e:
             print(f"[AIService] ❌ Error fatal generando quiz: {e}")
             return [{"question": "Error de conexión con IA", "options": ["Reintentar"], "correct_answer": "Reintentar"}]
+
+    async def generate_summary_from_video(self, video_path: str) -> str:
+        """
+        Sube un video a Gemini y genera un resumen usando el modelo multimodal.
+        """
+        print(f"[AIService] 🎥 Procesando video: {video_path}")
+        if not self.client: return "Error: IA no configurada."
+
+        try:
+            # 1. Subir el archivo a Gemini
+            print(f"[AIService] ⬆️ Subiendo video a Google AI ({os.path.getsize(video_path)} bytes)...")
+            
+            # CORRECCIÓN: El argumento para archivos locales es 'path', no 'file'
+            video_file = self.client.files.upload(
+                path=video_path,
+                config={'display_name': 'Video de Clase'}
+            )
+            
+            print(f"[AIService] ✅ Video subido: {video_file.name} (Estado: {video_file.state})")
+            
+            # 2. Esperar a que el video esté procesado (ACTIVE)
+            # Esperamos un máximo de 60 segundos
+            max_wait = 60
+            waited = 0
+            while video_file.state == "PROCESSING":
+                print(f"[AIService] ⏳ Esperando procesamiento del video ({waited}s)...")
+                await asyncio.sleep(2)
+                waited += 2
+                if waited > max_wait:
+                    raise Exception("Tiempo de espera de procesamiento agotado")
+                video_file = self.client.files.get(name=video_file.name)
+            
+            if video_file.state != "ACTIVE":
+                raise Exception(f"Video no se procesó correctamente. Estado: {video_file.state}")
+
+            print(f"[AIService] ✅ Video procesado y listo.")
+
+            # 3. Generar contenido multimodal
+            prompt = "Actúa como un profesor experto. Transcribe mentalmente el contenido de audio y visual de este video. Luego, genera un resumen educativo detallado en español basado ÚNICAMENTE en esa transcripción interna. Ignora cualquier intro o outro irrelevante. Estructura el resumen por puntos clave."
+            
+            # Usamos SOLO gemini-2.5-flash
+            models = ["gemini-2.5-flash"]
+            last_error = None
+            
+            for model in models:
+                try:
+                    print(f"[AIService] 🔄 Generando resumen con {model}...")
+                    response = await self.client.aio.models.generate_content(
+                        model=model, 
+                        contents=[video_file, prompt]
+                    )
+                    if response.text:
+                        print(f"[AIService] ✅ Resumen de video generado.")
+                        return response.text
+                except Exception as e:
+                    print(f"[AIService] ⚠️ Error con {model}: {e}")
+                    last_error = e
+                    if "429" in str(e):
+                         await asyncio.sleep(10) # Wait a bit before next model
+            
+            raise last_error
+
+        except Exception as e:
+            print(f"[AIService] ❌ Error procesando video: {e}")
+            return f"Error generando resumen del video: {e}"
 
 ai_service = AIService()
