@@ -25,7 +25,8 @@ export default function MFADropdown({ user, onClose }: MFADropdownProps) {
   const [showMFAModal, setShowMFAModal] = useState(false);
   const [showDisableModal, setShowDisableModal] = useState(false);
   const [activeFactorId, setActiveFactorId] = useState<string | null>(null);
-  
+  const [deactivateError, setDeactivateError] = useState<string | null>(null);
+
   const { isMFAEnabled, loading: mfaLoading, checkMFAStatus, factors } = useMFA();
 
   // Cerrar dropdown al hacer click fuera
@@ -64,52 +65,29 @@ export default function MFADropdown({ user, onClose }: MFADropdownProps) {
   const handleActivateMFA = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setDeactivateError(null);
     setShowMFAModal(true);
   };
 
   const handleDisableMFA = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+    setDeactivateError(null);
+
     try {
-      // Obtener el factor activo
       const activeFactors = factors.length > 0 ? factors : await MFAService.listFactors();
-      
+
       if (activeFactors.length === 0) {
-        alert("No hay factores MFA activos para desactivar");
+        setDeactivateError("No hay factores MFA activos para desactivar.");
         return;
       }
 
-      // Verificar si se necesita AAL2
-      const hasAAL2 = await MFAService.hasAAL2();
-      
-      if (!hasAAL2) {
-        // Necesita verificar con código antes de desactivar
-        setActiveFactorId(activeFactors[0].id);
-        setShowDisableModal(true);
-      } else {
-        // Intentar desactivar directamente
-        try {
-          await MFAService.unenrollFactor(activeFactors[0].id);
-          await checkMFAStatus();
-          alert("MFA desactivado exitosamente");
-        } catch (error) {
-          // Si aún requiere AAL2, mostrar modal de verificación
-          const errorMessage = error instanceof Error ? error.message : "";
-          if (errorMessage.includes("AAL2_REQUIRED")) {
-            setActiveFactorId(activeFactors[0].id);
-            setShowDisableModal(true);
-          } else {
-            throw error;
-          }
-        }
-      }
+      setActiveFactorId(activeFactors[0].id);
+      setShowDisableModal(true);
     } catch (error) {
       console.error("Error al preparar desactivación MFA:", error);
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Error al desactivar MFA. Por favor intenta nuevamente."
+      setDeactivateError(
+        error instanceof Error ? error.message : "Error al desactivar MFA. Intenta de nuevo."
       );
     }
   };
@@ -123,18 +101,21 @@ export default function MFADropdown({ user, onClose }: MFADropdownProps) {
   const handleMFADeactivationSuccess = async () => {
     setShowDisableModal(false);
     setActiveFactorId(null);
+    setDeactivateError(null);
     onClose?.();
     await checkMFAStatus();
   };
 
   const handleCloseModal = () => {
     setShowMFAModal(false);
+    setDeactivateError(null);
     onClose?.();
   };
 
   const handleCloseDeactivationModal = () => {
     setShowDisableModal(false);
     setActiveFactorId(null);
+    setDeactivateError(null);
   };
 
   const displayName = user.name || "Usuario";
@@ -156,6 +137,11 @@ export default function MFADropdown({ user, onClose }: MFADropdownProps) {
 
         {/* Opciones del menú */}
         <div className="py-2">
+          {deactivateError && (
+            <div className="mx-4 mb-2 px-3 py-2 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg">
+              {deactivateError}
+            </div>
+          )}
           {/* Activar/Desactivar MFA */}
           {!mfaLoading && (
             <button

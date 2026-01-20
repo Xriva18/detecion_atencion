@@ -99,10 +99,7 @@ export default function MFADeactivationModal({
 
   const handleVerify = async () => {
     const codeString = code.join("");
-    if (codeString.length !== 6) {
-      setError("Por favor, ingresa el código completo de 6 dígitos.");
-      return;
-    }
+    if (codeString.length !== 6) return;
 
     setIsVerifying(true);
     setError("");

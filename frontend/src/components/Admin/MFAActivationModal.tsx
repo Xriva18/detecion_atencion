@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { createPortal } from "react-dom";
 import { MFAService } from "@/services/auth/mfaService";
 
