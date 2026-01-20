@@ -119,19 +119,19 @@ function TwoAuthForm() {
     setIsVerifying(true);
 
     try {
-      if (isLoginFlow) {
-        // Flujo de login: challengeAndVerify
+      // Flujo de verificación MFA para completar login (viene de /login con email+factorId
+      // o de middleware con solo factorId vía loadActiveFactor)
+      if (isLoginFlow || activeFactorId) {
         await MFAService.challengeAndVerify(activeFactorId, code);
-        
-        // Obtener sesión actualizada
+
         const supabase = createClientSupabase();
+        await supabase.auth.refreshSession();
         const { data: { session } } = await supabase.auth.getSession();
-        
+
         if (!session) {
-          throw new Error("Error: no se pudo obtener la sesión después de la verificación");
+          throw new Error("No se pudo obtener la sesión. Intenta iniciar sesión de nuevo.");
         }
 
-        // Redirigir según el rol
         const userRole = session.user?.app_metadata?.role as number | undefined;
         if (userRole === 1) {
           window.location.href = "/admin";
@@ -143,9 +143,7 @@ function TwoAuthForm() {
           window.location.href = "/";
         }
       } else {
-        // Este caso no debería ocurrir desde esta página (la activación se hace desde el Header)
-        // Pero lo dejamos por si acaso
-        setError("Esta página solo es para verificación durante el login.");
+        setError("No se encontró un factor MFA. Actívalo desde tu perfil o inicia sesión de nuevo.");
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Error al verificar código MFA";

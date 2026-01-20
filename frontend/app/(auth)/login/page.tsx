@@ -58,70 +58,44 @@ export default function LoginPage() {
         return;
       }
 
-      // Verificar si el usuario requiere MFA
-      // Si session es null pero user no es null, significa que necesita MFA
-      if (!data.session && data.user) {
-        console.log("Usuario requiere MFA:", {
-          email: data.user.email,
-        });
+      // Si hay sesión: comprobar si se requiere MFA (getAuthenticatorAssuranceLevel)
+      // Con MFA activo, signInWithPassword devuelve sesión AAL1; nextLevel aal2 => redirigir a /twoauth
+      if (data.session) {
+        const { data: aalData, error: aalError } =
+          await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
-        try {
-          // Obtener los factores MFA del usuario
-          const factors = await MFAService.listFactors();
-          
-          if (factors.length === 0) {
-            // Usuario no tiene MFA configurado pero Supabase dice que requiere MFA
-            // Esto no debería pasar, pero manejamos el caso
-            throw new Error("Usuario requiere MFA pero no tiene factores configurados");
+        const needsMFA =
+          !aalError &&
+          aalData?.nextLevel === "aal2" &&
+          aalData?.currentLevel !== "aal2";
+
+        if (needsMFA) {
+          const { data: factorsData, error: factorsError } =
+            await supabase.auth.mfa.listFactors();
+
+          if (!factorsError && factorsData?.totp?.length) {
+            const factorId = factorsData.totp[0].id;
+            router.push(
+              `/twoauth?email=${encodeURIComponent(email)}&factorId=${encodeURIComponent(factorId)}`
+            );
+            return;
           }
-
-          // Usar el primer factor (normalmente solo hay uno)
-          const factor = factors[0];
-          
-          // Redirigir a la página de verificación MFA
-          router.push(
-            `/twoauth?email=${encodeURIComponent(email)}&factorId=${encodeURIComponent(factor.id)}`
-          );
-          return;
-        } catch (mfaError) {
-          console.error("Error al obtener factores MFA:", mfaError);
-          setError("Error al verificar autenticación de dos factores");
-          setAlertMessage("Error al verificar autenticación de dos factores");
-          setAlertDetail(
-            mfaError instanceof Error
-              ? mfaError.message
-              : "Por favor, intenta nuevamente"
-          );
+          setError("No se encontró un factor MFA. Contacta a soporte.");
+          setAlertMessage("Error en autenticación de dos factores");
+          setAlertDetail("No se encontró un factor MFA configurado.");
           setAlertType("error");
           setIsAlertOpen(true);
           return;
         }
-      }
 
-      // Si hay sesión, el login fue exitoso sin MFA o ya se verificó
-      if (data.session) {
-        // Obtener el rol del usuario desde app_metadata (el rol viene del JWT)
+        // No requiere MFA: ir al dashboard
         const userRole = data.user?.app_metadata?.role as number | undefined;
 
-        console.log("Usuario logueado:", {
-          email: data.user?.email,
-          app_metadata: data.user?.app_metadata,
-          user_metadata: data.user?.user_metadata,
-          role: userRole,
-          session: data.session ? "existe" : "no existe",
-        });
-
-        // El cliente de Supabase SSR maneja las cookies automáticamente
-        // No necesitamos guardar el token manualmente
-
-        // Mostrar mensaje de éxito
         setAlertMessage("Inicio de sesión exitoso");
         setAlertDetail(undefined);
         setAlertType("success");
         setIsAlertOpen(true);
 
-        // Redirigir según el rol del usuario después de un breve delay
-        // Usar window.location.href para forzar una recarga completa y que el middleware detecte la sesión
         setTimeout(() => {
           if (userRole === 1) {
             window.location.href = "/admin";
@@ -130,13 +104,30 @@ export default function LoginPage() {
           } else if (userRole === 3) {
             window.location.href = "/estudiante";
           } else {
-            // Si no tiene rol, redirigir a la página principal
-            console.warn(
-              "Usuario sin rol asignado, redirigiendo a página principal"
-            );
             window.location.href = "/";
           }
         }, 1500);
+        return;
+      }
+
+      // Caso poco común: user sin session (algunos flujos de Supabase)
+      if (!data.session && data.user) {
+        try {
+          const factors = await MFAService.listFactors();
+          if (factors.length > 0) {
+            router.push(
+              `/twoauth?email=${encodeURIComponent(email)}&factorId=${encodeURIComponent(factors[0].id)}`
+            );
+            return;
+          }
+        } catch (mfaErr) {
+          console.error("Error al obtener factores MFA:", mfaErr);
+        }
+        setError("Error al verificar autenticación de dos factores");
+        setAlertMessage("Error al verificar autenticación de dos factores");
+        setAlertDetail("Por favor, intenta nuevamente.");
+        setAlertType("error");
+        setIsAlertOpen(true);
       }
     } catch (error) {
       // Manejar errores inesperados

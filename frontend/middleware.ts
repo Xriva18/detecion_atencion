@@ -43,13 +43,26 @@ export async function middleware(req: NextRequest) {
   const { data } = await supabase.auth.getSession();
   const session = data.session;
 
-  // ❌ No logueado
   if (!session) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  const role = session.user.app_metadata?.role as number | undefined;
   const pathname = req.nextUrl.pathname;
+
+  // Si tiene sesión pero requiere MFA (AAL1 con nextLevel aal2), redirigir a /twoauth
+  try {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (
+      aal?.nextLevel === "aal2" &&
+      aal?.currentLevel !== "aal2"
+    ) {
+      return NextResponse.redirect(new URL("/twoauth", req.url));
+    }
+  } catch {
+    // Si falla la comprobación AAL, seguir (evitar bloquear al usuario)
+  }
+
+  const role = session.user.app_metadata?.role as number | undefined;
 
   // 🔒 SOLO ADMIN (rol 1) - Solo puede acceder a /admin
   if (pathname.startsWith("/admin") && role !== 1) {
