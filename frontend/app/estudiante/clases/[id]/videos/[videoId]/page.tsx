@@ -48,6 +48,12 @@ export default function VerVideoPage() {
   const pauseStartTimeRef = useRef<number | null>(null);
   const pausedTimeIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lowAttentionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const showSummaryModalRef = useRef(showSummaryModal);
+
+  useEffect(() => {
+    showSummaryModalRef.current = showSummaryModal;
+  }, [showSummaryModal]);
 
   // Sesión ID
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -57,34 +63,49 @@ export default function VerVideoPage() {
   // Stream de cámara
   const [stream, setStream] = useState<MediaStream | null>(null);
 
-  // Inicializar cámara
+  // Ciclo de vida de la cámara según showSummaryModal: parar al abrir modal, init al cerrar y en mount, cleanup
   useEffect(() => {
-    let currentStream: MediaStream | null = null;
-
-    const initCamera = async () => {
-      try {
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 640, height: 480 },
-          audio: false,
-        });
-        currentStream = mediaStream;
-        setStream(mediaStream);
-      } catch (err) {
-        console.error("Error accediendo a la cámara:", err);
-      }
-    };
-    initCamera();
-
-    // Cleanup
-    return () => {
-      if (currentStream) {
-        currentStream.getTracks().forEach((track) => track.stop());
+    if (showSummaryModal) {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        setStream(null);
       }
       if (lowAttentionTimerRef.current) {
         clearTimeout(lowAttentionTimerRef.current);
+        lowAttentionTimerRef.current = null;
+      }
+      return;
+    }
+
+    if (!streamRef.current) {
+      navigator.mediaDevices
+        .getUserMedia({ video: { width: 640, height: 480 }, audio: false })
+        .then((mediaStream) => {
+          if (showSummaryModalRef.current) {
+            mediaStream.getTracks().forEach((t) => t.stop());
+            return;
+          }
+          streamRef.current = mediaStream;
+          setStream(mediaStream);
+        })
+        .catch((err) => {
+          console.error("Error accediendo a la cámara:", err);
+        });
+    }
+
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        setStream(null);
+      }
+      if (lowAttentionTimerRef.current) {
+        clearTimeout(lowAttentionTimerRef.current);
+        lowAttentionTimerRef.current = null;
       }
     };
-  }, []);
+  }, [showSummaryModal]);
 
   // Cargar datos del video
   useEffect(() => {
@@ -437,9 +458,19 @@ export default function VerVideoPage() {
             <h3 className="text-xs font-bold text-gray-500 uppercase mb-2">
               Monitor de Atención
             </h3>
+            {showSummaryModal ? (
+              <div className="w-full aspect-video bg-gray-100 rounded-lg border-2 border-[#e5e7eb] flex flex-col items-center justify-center gap-2">
+                <span className="material-symbols-outlined text-4xl text-gray-400">
+                  videocam_off
+                </span>
+                <p className="text-sm text-gray-500 text-center px-4">
+                  Sesión finalizada – Monitor desactivado
+                </p>
+              </div>
+            ) : (
             <div className="w-full aspect-video bg-black/80 rounded-lg border-2 border-[#e5e7eb] overflow-hidden shadow-lg relative">
               <VideoCanvasBlink
-                isActive={true}
+                isActive={!showSummaryModal}
                 stream={stream}
                 onBlink={handleAttentionUpdate}
                 width={280}
@@ -482,6 +513,7 @@ export default function VerVideoPage() {
                 </div>
               </div>
             </div>
+            )}
           </div>
 
           {/* Video Details */}
