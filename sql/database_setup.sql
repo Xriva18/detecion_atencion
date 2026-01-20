@@ -84,8 +84,8 @@ create table if not exists activity_sessions (
   task_id uuid references tasks(id) on delete cascade,
   student_id uuid references profiles(user_id) on delete cascade,
   
-  -- Nivel de Atención (calculado en el frontend)
-  attention_level text check (attention_level in ('alto', 'medio', 'bajo')) not null,
+  -- Nivel de Atención (calculado en el frontend al finalizar)
+  attention_level text check (attention_level in ('alto', 'medio', 'bajo')), -- NULL mientras está en progreso
   
   -- Estado
   status text check (status in ('started', 'completed')) default 'started',

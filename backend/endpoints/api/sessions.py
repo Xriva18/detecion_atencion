@@ -35,6 +35,8 @@ async def start_session(data: SessionStart):
     Inicia una sesión de estudio cuando el estudiante empieza a ver un video.
     """
     try:
+        # attention_level se establecerá cuando se finalice la sesión
+        # No lo incluimos al iniciar porque aún no se ha calculado
         session_data = {
             "task_id": data.task_id,
             "student_id": data.student_id,
@@ -43,6 +45,9 @@ async def start_session(data: SessionStart):
         response = supabase.table("activity_sessions").insert(session_data).execute()
         return {"message": "Sesión iniciada", "session": response.data[0]}
     except Exception as e:
+        print(f"[Session Start] ❌ ERROR: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -183,7 +188,8 @@ async def submit_quiz(data: QuizAnswer):
             if user_answer == q.get("correct_answer"):
                 correct_count += 1
         
-        score = (correct_count / total) * 100 if total > 0 else 0
+        # Calcular puntuación sobre 20
+        score = (correct_count / total) * 20 if total > 0 else 0
         
         # Actualizar quiz con respuestas y nota
         update_data = {

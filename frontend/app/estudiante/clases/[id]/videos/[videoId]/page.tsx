@@ -45,6 +45,7 @@ export default function VerVideoPage() {
   const [currentPauseElapsed, setCurrentPauseElapsed] = useState(0); // Tiempo transcurrido en la pausa actual
   const [videoDuration, setVideoDuration] = useState(0); // Duración total del video en segundos
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const pauseStartTimeRef = useRef<number | null>(null);
   const pausedTimeIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lowAttentionTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -377,8 +378,9 @@ export default function VerVideoPage() {
     setShowSummaryModal(true);
   };
 
-  const handleConfirmFinish = async () => {
+  const handleConfirmFinish = async (attentionLevel: "alto" | "medio" | "bajo") => {
     setShowSummaryModal(false);
+    setIsGeneratingQuiz(true);
     
     let activeSessionId = sessionId;
 
@@ -393,43 +395,66 @@ export default function VerVideoPage() {
         setSessionId(activeSessionId);
       } catch (e) {
         console.error("Error starting session explicitly for finish:", e);
+        setIsGeneratingQuiz(false);
         alert("No se pudo iniciar la sesión para generar el cuestionario.");
         return;
       }
     }
 
-    // Calcular promedio de atención
-    const avgAttention =
-      accumulatedAttention.length > 0
-        ? accumulatedAttention.reduce((a, b) => a + b, 0) /
-          accumulatedAttention.length
-        : 1.0;
-
-    // Convertir score numérico a nivel de atención
-    let attentionLevel: 'alto' | 'medio' | 'bajo';
-    if (avgAttention >= 0.7) {
-      attentionLevel = 'alto';
-    } else if (avgAttention >= 0.4) {
-      attentionLevel = 'medio';
-    } else {
-      attentionLevel = 'bajo';
-    }
-
+    // Usar el attentionLevel recibido del modal (fuente de verdad)
     try {
       const res = await api.post("/sessions/end", {
         session_id: activeSessionId,
         attention_level: attentionLevel,
       });
       const { quiz_id } = res.data;
+      setIsGeneratingQuiz(false);
       router.push(`/estudiante/cuestionario/${quiz_id}`);
     } catch (error) {
       console.error("Error generating quiz:", error);
-      alert("Error al finalizar la sesión. Intenta de nuevo.");
+      setIsGeneratingQuiz(false);
+      alert("Error al generar el cuestionario. Intenta de nuevo.");
     }
   };
 
   if (!videoData)
     return <div className="p-10 text-center text-white">Cargando video...</div>;
+
+  // Pantalla de carga mientras se genera el cuestionario
+  if (isGeneratingQuiz) {
+    return (
+      <div className="flex flex-col h-screen w-full overflow-hidden bg-background-light text-[#111318]">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-6 max-w-md mx-auto px-6">
+            {/* Spinner animado */}
+            <div className="relative w-24 h-24">
+              <div className="absolute inset-0 border-4 border-primary/20 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            </div>
+            
+            {/* Texto de carga */}
+            <div className="text-center space-y-2">
+              <h2 className="text-2xl font-bold text-[#111318]">
+                Generando Cuestionario
+              </h2>
+              <p className="text-[#616f89]">
+                Estamos creando preguntas personalizadas basadas en tu nivel de atención...
+              </p>
+            </div>
+
+            {/* Indicador de progreso animado */}
+            <div className="w-full max-w-xs space-y-2">
+              <div className="flex gap-1 justify-center">
+                <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-background-light text-[#111318]">

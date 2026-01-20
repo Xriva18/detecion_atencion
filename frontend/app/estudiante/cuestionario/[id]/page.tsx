@@ -16,6 +16,11 @@ export default function CuestionarioPage() {
   const [answers, setAnswers] = useState<{ [key: string]: string }>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [quizResult, setQuizResult] = useState<{
+    score: number;
+    correct: number;
+    total: number;
+  } | null>(null);
 
   // Fetch Quiz Data
   useEffect(() => {
@@ -57,18 +62,17 @@ export default function CuestionarioPage() {
   const handleSubmit = async () => {
     setIsSubmitted(true);
     try {
-      await api.post('/sessions/quiz/submit', {
+      const res = await api.post('/sessions/quiz/submit', {
         quiz_id: quizId,
         answers: answers
       });
 
-      // Redirigir a resultados (o dashboard por ahora)
-      setTimeout(() => {
-        // TODO: Crear página de resultados /estudiante/resultados/[quizId]
-        // Por ahora volvemos a la lista de clases
-        alert("¡Cuestionario enviado! Tu nota ha sido registrada.");
-        router.push("/estudiante/dashboard");
-      }, 1500);
+      // Guardar resultado con puntuación sobre 20
+      setQuizResult({
+        score: res.data.score,
+        correct: res.data.correct,
+        total: res.data.total
+      });
 
     } catch (err) {
       console.error("Error submitting quiz:", err);
@@ -90,7 +94,7 @@ export default function CuestionarioPage() {
   const currentAnswer = answers[`q${currentQuestion}`];
   const allAnswered = Object.keys(answers).length === questions.length;
 
-  if (isSubmitted) {
+  if (isSubmitted && !quizResult) {
     return (
       <>
         <Header
@@ -108,6 +112,77 @@ export default function CuestionarioPage() {
             <p className="text-lg font-medium text-[#111318]">
               Enviando respuestas...
             </p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (isSubmitted && quizResult) {
+    const percentage = (quizResult.score / 20) * 100;
+    const isPassing = quizResult.score >= 10; // Aprobado si tiene 10/20 o más
+    
+    return (
+      <>
+        <Header
+          title="Resultados del Cuestionario"
+          subtitle="Tu puntuación"
+          user={{
+            name: "Estudiante",
+            email: "estudiante@demo.com",
+            role: "Estudiante",
+          }}
+        />
+        <div className="p-6 md:p-8 max-w-4xl mx-auto w-full flex flex-col gap-8 items-center justify-center min-h-[60vh]">
+          <div className="bg-white rounded-xl border border-[#e5e7eb] p-8 shadow-sm w-full max-w-md">
+            <div className="flex flex-col items-center gap-6">
+              {/* Icono de resultado */}
+              <div className={`w-24 h-24 rounded-full flex items-center justify-center ${
+                isPassing ? 'bg-green-100' : 'bg-red-100'
+              }`}>
+                <span className={`material-symbols-outlined text-5xl ${
+                  isPassing ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {isPassing ? 'check_circle' : 'cancel'}
+                </span>
+              </div>
+
+              {/* Puntuación principal */}
+              <div className="text-center">
+                <h2 className="text-4xl font-bold text-[#111318] mb-2">
+                  {quizResult.score.toFixed(1)} / 20
+                </h2>
+                <p className="text-lg text-[#616f89]">
+                  {quizResult.correct} de {quizResult.total} respuestas correctas
+                </p>
+                <p className={`text-sm font-medium mt-2 ${
+                  isPassing ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {percentage.toFixed(1)}% - {isPassing ? 'Aprobado' : 'Reprobado'}
+                </p>
+              </div>
+
+              {/* Barra de progreso */}
+              <div className="w-full">
+                <div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-500 ${
+                      isPassing ? 'bg-green-500' : 'bg-red-500'
+                    }`}
+                    style={{ width: `${percentage}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Botón para continuar */}
+              <button
+                onClick={() => router.push("/estudiante/dashboard")}
+                className="w-full px-6 py-3 rounded-lg bg-primary hover:bg-blue-700 text-white font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                <span>Volver al Dashboard</span>
+                <span className="material-symbols-outlined">arrow_forward</span>
+              </button>
+            </div>
           </div>
         </div>
       </>
