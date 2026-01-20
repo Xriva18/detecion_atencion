@@ -4,7 +4,9 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClientSupabase } from "@/utils/supabase/client";
 import { useMFA } from "@/hooks/useMFA";
+import { MFAService } from "@/services/auth/mfaService";
 import MFAActivationModal from "./MFAActivationModal";
+import MFADeactivationModal from "./MFADeactivationModal";
 
 interface MFADropdownProps {
   user: {
@@ -21,16 +23,16 @@ export default function MFADropdown({ user, onClose }: MFADropdownProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [showMFAModal, setShowMFAModal] = useState(false);
-  const [showDisableConfirm, setShowDisableConfirm] = useState(false);
-  const [isDisabling, setIsDisabling] = useState(false);
+  const [showDisableModal, setShowDisableModal] = useState(false);
+  const [activeFactorId, setActiveFactorId] = useState<string | null>(null);
   
-  const { isMFAEnabled, loading: mfaLoading, disableMFA, checkMFAStatus } = useMFA();
+  const { isMFAEnabled, loading: mfaLoading, checkMFAStatus, factors } = useMFA();
 
   // Cerrar dropdown al hacer click fuera
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // No cerrar si el modal está abierto
-      if (showMFAModal) return;
+      // No cerrar si algún modal está abierto
+      if (showMFAModal || showDisableModal) return;
       
       if (
         dropdownRef.current &&
@@ -44,7 +46,7 @@ export default function MFADropdown({ user, onClose }: MFADropdownProps) {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [onClose, showMFAModal]);
+  }, [onClose, showMFAModal, showDisableModal]);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -61,43 +63,78 @@ export default function MFADropdown({ user, onClose }: MFADropdownProps) {
 
   const handleActivateMFA = (e: React.MouseEvent) => {
     e.preventDefault();
-    e.stopPropagation(); // Prevenir que el click se propague
+    e.stopPropagation();
     setShowMFAModal(true);
-    // No cerrar el dropdown inmediatamente, el modal se renderiza encima
   };
 
-  const handleDisableMFA = async () => {
-    if (!showDisableConfirm) {
-      setShowDisableConfirm(true);
-      return;
-    }
-
-    setIsDisabling(true);
+  const handleDisableMFA = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     try {
-      await disableMFA();
-      setShowDisableConfirm(false);
-      await checkMFAStatus();
+      // Obtener el factor activo
+      const activeFactors = factors.length > 0 ? factors : await MFAService.listFactors();
+      
+      if (activeFactors.length === 0) {
+        alert("No hay factores MFA activos para desactivar");
+        return;
+      }
+
+      // Verificar si se necesita AAL2
+      const hasAAL2 = await MFAService.hasAAL2();
+      
+      if (!hasAAL2) {
+        // Necesita verificar con código antes de desactivar
+        setActiveFactorId(activeFactors[0].id);
+        setShowDisableModal(true);
+      } else {
+        // Intentar desactivar directamente
+        try {
+          await MFAService.unenrollFactor(activeFactors[0].id);
+          await checkMFAStatus();
+          alert("MFA desactivado exitosamente");
+        } catch (error) {
+          // Si aún requiere AAL2, mostrar modal de verificación
+          const errorMessage = error instanceof Error ? error.message : "";
+          if (errorMessage.includes("AAL2_REQUIRED")) {
+            setActiveFactorId(activeFactors[0].id);
+            setShowDisableModal(true);
+          } else {
+            throw error;
+          }
+        }
+      }
     } catch (error) {
-      console.error("Error al desactivar MFA:", error);
+      console.error("Error al preparar desactivación MFA:", error);
       alert(
         error instanceof Error
           ? error.message
           : "Error al desactivar MFA. Por favor intenta nuevamente."
       );
-    } finally {
-      setIsDisabling(false);
     }
   };
 
   const handleMFASuccess = async () => {
     setShowMFAModal(false);
-    onClose?.(); // Cerrar el dropdown después de activar MFA
+    onClose?.();
+    await checkMFAStatus();
+  };
+
+  const handleMFADeactivationSuccess = async () => {
+    setShowDisableModal(false);
+    setActiveFactorId(null);
+    onClose?.();
     await checkMFAStatus();
   };
 
   const handleCloseModal = () => {
     setShowMFAModal(false);
-    onClose?.(); // Cerrar el dropdown cuando se cierra el modal
+    onClose?.();
+  };
+
+  const handleCloseDeactivationModal = () => {
+    setShowDisableModal(false);
+    setActiveFactorId(null);
   };
 
   const displayName = user.name || "Usuario";
@@ -124,7 +161,7 @@ export default function MFADropdown({ user, onClose }: MFADropdownProps) {
             <button
               onClick={(e) => {
                 if (isMFAEnabled) {
-                  handleDisableMFA();
+                  handleDisableMFA(e);
                 } else {
                   handleActivateMFA(e);
                 }
@@ -134,40 +171,12 @@ export default function MFADropdown({ user, onClose }: MFADropdownProps) {
               <span className="material-symbols-outlined text-sm">
                 {isMFAEnabled ? "lock_open" : "lock"}
               </span>
-              {showDisableConfirm ? (
-                <span className="text-red-600">
-                  Confirmar desactivación
-                </span>
-              ) : isMFAEnabled ? (
+              {isMFAEnabled ? (
                 <span>Desactivar 2FA</span>
               ) : (
                 <span>Activar 2FA</span>
               )}
             </button>
-          )}
-
-          {showDisableConfirm && (
-            <div className="px-4 py-2 bg-yellow-50 border-l-4 border-yellow-400">
-              <p className="text-xs text-yellow-800 mb-2">
-                ¿Estás seguro de desactivar la autenticación de dos factores?
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleDisableMFA}
-                  disabled={isDisabling}
-                  className="flex-1 px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
-                >
-                  {isDisabling ? "Desactivando..." : "Sí, desactivar"}
-                </button>
-                <button
-                  onClick={() => setShowDisableConfirm(false)}
-                  disabled={isDisabling}
-                  className="flex-1 px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
           )}
 
           {/* Cerrar sesión */}
@@ -201,6 +210,16 @@ export default function MFADropdown({ user, onClose }: MFADropdownProps) {
         onClose={handleCloseModal}
         onSuccess={handleMFASuccess}
       />
+
+      {/* Modal de desactivación MFA */}
+      {activeFactorId && (
+        <MFADeactivationModal
+          isOpen={showDisableModal}
+          onClose={handleCloseDeactivationModal}
+          onSuccess={handleMFADeactivationSuccess}
+          factorId={activeFactorId}
+        />
+      )}
     </>
   );
 }

@@ -15,6 +15,7 @@ export interface UseMFAReturn {
   }>;
   verifyMFA: (factorId: string, code: string) => Promise<void>;
   disableMFA: () => Promise<void>;
+  disableMFAWithCode: (factorId: string, code: string) => Promise<void>;
   checkMFAStatus: () => Promise<void>;
   refreshFactors: () => Promise<void>;
 }
@@ -101,6 +102,9 @@ export function useMFA(): UseMFAReturn {
 
   /**
    * Desactivar MFA
+   * NOTA: Esta función ahora requiere que se pase el código MFA
+   * para verificar AAL2 antes de desactivar. Use disableMFAWithCode en su lugar.
+   * @deprecated Use disableMFAWithCode con código de verificación
    */
   const disableMFA = useCallback(async () => {
     try {
@@ -113,9 +117,18 @@ export function useMFA(): UseMFAReturn {
         throw new Error("No hay factores MFA activos para desactivar");
       }
 
-      // Desactivar todos los factores (normalmente solo hay uno)
+      // Intentar desactivar sin código (puede fallar si requiere AAL2)
       for (const factor of activeFactors) {
-        await MFAService.unenrollFactor(factor.id);
+        try {
+          await MFAService.unenrollFactor(factor.id);
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : "Error desconocido";
+          // Si requiere AAL2, lanzar error específico
+          if (errorMessage.includes("AAL2_REQUIRED")) {
+            throw new Error("AAL2_REQUIRED");
+          }
+          throw err;
+        }
       }
 
       // Actualizar estado
@@ -127,6 +140,27 @@ export function useMFA(): UseMFAReturn {
       throw err;
     }
   }, []);
+
+  /**
+   * Desactivar MFA con código de verificación
+   * @param factorId ID del factor a desactivar
+   * @param code Código TOTP de 6 dígitos
+   */
+  const disableMFAWithCode = useCallback(async (factorId: string, code: string) => {
+    try {
+      setError(null);
+      
+      // Verificar y desactivar
+      await MFAService.unenrollFactor(factorId, code);
+
+      // Actualizar estado
+      await checkMFAStatus();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Error al desactivar MFA";
+      setError(errorMessage);
+      throw err;
+    }
+  }, [checkMFAStatus]);
 
   // Verificar estado al montar el componente
   useEffect(() => {
@@ -141,6 +175,7 @@ export function useMFA(): UseMFAReturn {
     enrollMFA,
     verifyMFA,
     disableMFA,
+    disableMFAWithCode,
     checkMFAStatus,
     refreshFactors,
   };

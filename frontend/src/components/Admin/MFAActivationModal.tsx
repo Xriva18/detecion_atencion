@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { MFAService } from "@/services/auth/mfaService";
 
+type Step = 1 | 2; // 1: escanear QR, 2: ingresar código
+
 interface MFAActivationModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -15,6 +17,7 @@ export default function MFAActivationModal({
   onClose,
   onSuccess,
 }: MFAActivationModalProps) {
+  const [step, setStep] = useState<Step>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [qrCode, setQrCode] = useState<string>("");
   const [secret, setSecret] = useState<string>("");
@@ -39,6 +42,7 @@ export default function MFAActivationModal({
     const initializeMFA = async () => {
       setIsLoading(true);
       setError("");
+      setStep(1);
 
       try {
         const result = await MFAService.enrollMFA();
@@ -46,7 +50,7 @@ export default function MFAActivationModal({
         setQrCode(result.qr_code);
         setSecret(result.secret);
         setFactorId(result.factorId);
-        factorIdRef.current = result.factorId; // Guardar en ref también
+        factorIdRef.current = result.factorId;
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : "Error al inicializar MFA";
@@ -58,6 +62,18 @@ export default function MFAActivationModal({
 
     initializeMFA();
   }, [isOpen, factorId]);
+
+  const goToStep2 = () => {
+    setError("");
+    setStep(2);
+    setTimeout(() => inputRefs.current[0]?.focus(), 100);
+  };
+
+  const goToStep1 = () => {
+    setError("");
+    setCode(["", "", "", "", "", ""]);
+    setStep(1);
+  };
 
   const handleCodeChange = (index: number, value: string) => {
     if (value && !/^\d$/.test(value)) {
@@ -122,12 +138,8 @@ export default function MFAActivationModal({
 
   const handleVerify = async () => {
     const codeString = code.join("");
-    if (codeString.length !== 6) {
-      setError("Por favor, ingresa el código completo de 6 dígitos.");
-      return;
-    }
+    if (codeString.length !== 6) return;
 
-    // Usar el ref como respaldo si el estado se perdió
     const currentFactorId = factorId || factorIdRef.current;
 
     if (!currentFactorId) {
@@ -143,14 +155,18 @@ export default function MFAActivationModal({
     try {
       await MFAService.verifyMFA(currentFactorId, codeString);
       verificationSuccessRef.current = true;
-      onSuccess();
-      handleClose();
+      
+      // Pequeño delay para mejor UX antes de cerrar
+      setTimeout(() => {
+        onSuccess();
+        handleClose();
+      }, 500);
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Error al verificar código";
       setError(errorMessage);
       setCode(["", "", "", "", "", ""]);
-      inputRefs.current[0]?.focus();
+      setTimeout(() => inputRefs.current[0]?.focus(), 100);
     } finally {
       setIsVerifying(false);
     }
@@ -167,7 +183,7 @@ export default function MFAActivationModal({
       }
     }
 
-    // Limpiar estado
+    setStep(1);
     setCode(["", "", "", "", "", ""]);
     setError("");
     setQrCode("");
@@ -206,62 +222,54 @@ export default function MFAActivationModal({
                 Inicializando autenticación de dos factores...
               </p>
             </div>
-          ) : (
+          ) : step === 1 ? (
+            /* ——— Paso 1: Escanear QR ——— */
             <div className="flex flex-col items-center">
-              <div className="mb-6 flex items-center justify-center size-16 rounded-full bg-primary/10 text-primary">
-                <span className="material-symbols-outlined text-[32px]">
-                  lock_person
-                </span>
+              <div className="flex items-center gap-2 mb-4 w-full justify-center">
+                <span className="w-2 h-2 rounded-full bg-primary" />
+                <span className="w-2 h-2 rounded-full bg-gray-200" />
               </div>
-
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Activar Autenticación de Dos Factores
+              <div className="mb-4 flex items-center justify-center size-14 rounded-full bg-primary/10 text-primary">
+                <span className="material-symbols-outlined text-2xl">qr_code_2</span>
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-1">
+                Escanear código QR
               </h2>
-              <p className="text-gray-600 text-center mb-6">
-                Escanea el código QR y luego ingresa el código de verificación
+              <p className="text-gray-500 text-sm text-center mb-6">
+                Abre tu app de autenticación y escanea el código
               </p>
 
               {qrCode && (
-                <div className="mb-6 p-4 bg-white border-2 border-gray-200 rounded-lg">
+                <div className="mb-5 p-4 bg-white border-2 border-gray-200 rounded-xl">
                   <img
                     src={qrCode}
-                    alt="QR Code para MFA"
-                    className="w-64 h-64 mx-auto"
+                    alt="QR para MFA"
+                    className="w-56 h-56 mx-auto"
                   />
                 </div>
               )}
 
               <div className="w-full mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Código de respaldo (guárdalo en un lugar seguro)
-                  </label>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm text-gray-600">Código de respaldo</span>
                   <button
                     type="button"
                     onClick={() => setShowSecret(!showSecret)}
-                    className="text-sm text-primary hover:text-blue-700"
+                    className="text-sm text-primary hover:underline"
                   >
                     {showSecret ? "Ocultar" : "Mostrar"}
                   </button>
                 </div>
                 {showSecret && secret && (
                   <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                    <code className="text-sm font-mono text-gray-800 break-all">
-                      {secret}
-                    </code>
+                    <code className="text-xs font-mono text-gray-700 break-all">{secret}</code>
                   </div>
                 )}
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 w-full">
+              <div className="bg-blue-50/80 border border-blue-100 rounded-lg p-3 mb-6 w-full">
                 <p className="text-sm text-blue-800">
-                  <span className="font-semibold">Instrucciones:</span>
-                  <br />
-                  1. Abre Google Authenticator o una app similar
-                  <br />
-                  2. Escanea el código QR de arriba
-                  <br />
-                  3. Ingresa el código de 6 dígitos que aparece en la app
+                  <strong>Instrucciones:</strong> Abre Google Authenticator (o similar), escanea el QR y guarda el código de respaldo si lo ves.
                 </p>
               </div>
 
@@ -271,28 +279,52 @@ export default function MFAActivationModal({
                 </div>
               )}
 
+              <button
+                onClick={goToStep2}
+                className="w-full bg-primary hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                Ya escaneé, continuar
+                <span className="material-symbols-outlined text-lg">arrow_forward</span>
+              </button>
+            </div>
+          ) : (
+            /* ——— Paso 2: Ingresar código ——— */
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-2 mb-4 w-full justify-center">
+                <span className="w-2 h-2 rounded-full bg-primary" />
+                <span className="w-2 h-2 rounded-full bg-primary" />
+              </div>
+              <div className="mb-4 flex items-center justify-center size-14 rounded-full bg-primary/10 text-primary">
+                <span className="material-symbols-outlined text-2xl">pin</span>
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-1">
+                Ingresar código
+              </h2>
+              <p className="text-gray-500 text-sm text-center mb-6">
+                Escribe el código de 6 dígitos de tu app
+              </p>
+
+              {error && (
+                <div className="w-full mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                  {error}
+                </div>
+              )}
+
               <div className="w-full mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-3 text-center">
-                  Código de verificación
-                </label>
                 <div className="flex justify-center">
                   <fieldset className="flex gap-2 sm:gap-3">
-                    {code.map((digit, index) => (
+                    {code.map((digit, i) => (
                       <input
-                        key={index}
-                        ref={(el) => {
-                          inputRefs.current[index] = el;
-                        }}
+                        key={i}
+                        ref={(el) => { inputRefs.current[i] = el; }}
                         className="flex h-12 w-10 sm:h-14 sm:w-12 text-center bg-gray-50 border-b-2 border-gray-300 rounded-t-md focus:border-primary focus:bg-white focus:outline-none text-xl sm:text-2xl font-bold transition-all caret-primary text-gray-900"
                         inputMode="numeric"
                         maxLength={1}
                         type="text"
                         value={digit}
-                        onChange={(e) =>
-                          handleCodeChange(index, e.target.value)
-                        }
-                        onKeyDown={(e) => handleKeyDown(index, e)}
-                        onPaste={index === 0 ? handlePaste : undefined}
+                        onChange={(e) => handleCodeChange(i, e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(i, e)}
+                        onPaste={i === 0 ? handlePaste : undefined}
                         disabled={isVerifying}
                       />
                     ))}
@@ -307,9 +339,7 @@ export default function MFAActivationModal({
               >
                 {isVerifying ? (
                   <>
-                    <span className="material-symbols-outlined animate-spin">
-                      sync
-                    </span>
+                    <span className="material-symbols-outlined animate-spin">sync</span>
                     Verificando...
                   </>
                 ) : (
@@ -318,6 +348,14 @@ export default function MFAActivationModal({
                     <span className="material-symbols-outlined">check</span>
                   </>
                 )}
+              </button>
+
+              <button
+                type="button"
+                onClick={goToStep1}
+                className="mt-4 text-sm text-gray-500 hover:text-primary"
+              >
+                Volver a escanear
               </button>
             </div>
           )}
