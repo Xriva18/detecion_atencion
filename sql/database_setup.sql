@@ -80,9 +80,8 @@ create table if not exists activity_sessions (
   task_id uuid references tasks(id) on delete cascade,
   student_id uuid references profiles(user_id) on delete cascade,
   
-  -- Métricas de Atención
-  attention_score_avg float,   -- Promedio de atención (0.0 - 1.0)
-  attention_data jsonb,        -- Datos detallados (opcional, logs por minuto)
+  -- Nivel de Atención (calculado en el frontend)
+  attention_level text check (attention_level in ('alto', 'medio', 'bajo')) not null,
   
   -- Estado
   status text check (status in ('started', 'completed')) default 'started',
@@ -116,65 +115,78 @@ alter table activity_sessions enable row level security;
 alter table generated_quizzes enable row level security;
 
 -- --- POLÍTICAS PARA CLASES ---
+-- Eliminar políticas existentes si existen (para permitir re-ejecutar el script)
+DROP POLICY IF EXISTS "Profesores ven todo (o solo suyas)" ON classes;
+DROP POLICY IF EXISTS "Estudiantes ven sus clases" ON classes;
+DROP POLICY IF EXISTS "Profesores crean clases" ON classes;
+
 -- Profesores pueden ver todas las clases
-create policy "Profesores ven todo (o solo suyas)" on classes 
-for select using ( 
-    (select role from profiles where user_id = auth.uid()) in (1, 2) 
+CREATE POLICY "Profesores ven todo (o solo suyas)" ON classes 
+FOR SELECT USING ( 
+    (SELECT role FROM profiles WHERE user_id = auth.uid()) IN (1, 2) 
 );
 
 -- Estudiantes solo ven clases donde están inscritos
-create policy "Estudiantes ven sus clases" on classes 
-for select using (
-    exists (select 1 from class_enrollments where class_id = classes.id and student_id = auth.uid())
+CREATE POLICY "Estudiantes ven sus clases" ON classes 
+FOR SELECT USING (
+    EXISTS (SELECT 1 FROM class_enrollments WHERE class_id = classes.id AND student_id = auth.uid())
 );
 
 -- Admin/Profesor pueden crear clases
-create policy "Profesores crean clases" on classes 
-for insert with check (
-    (select role from profiles where user_id = auth.uid()) in (1, 2)
+CREATE POLICY "Profesores crean clases" ON classes 
+FOR INSERT WITH CHECK (
+    (SELECT role FROM profiles WHERE user_id = auth.uid()) IN (1, 2)
 );
 
 -- --- POLÍTICAS PARA TAREAS/VIDEOS ---
+-- Eliminar política existente si existe
+DROP POLICY IF EXISTS "Acceso a tareas por clase" ON tasks;
+
 -- Visibles si el usuario tiene acceso a la clase (Profesor dueño o Estudiante inscrito)
-create policy "Acceso a tareas por clase" on tasks
-for select using (
+CREATE POLICY "Acceso a tareas por clase" ON tasks
+FOR SELECT USING (
     -- Es Profesor/Admin
-    (select role from profiles where user_id = auth.uid()) in (1, 2)
+    (SELECT role FROM profiles WHERE user_id = auth.uid()) IN (1, 2)
     OR
     -- Es Estudiante inscrito
-    exists (select 1 from class_enrollments where class_id = tasks.class_id and student_id = auth.uid())
+    EXISTS (SELECT 1 FROM class_enrollments WHERE class_id = tasks.class_id AND student_id = auth.uid())
 );
 
 -- --- POLÍTICAS PARA SESIONES Y QUIZZES (Datos privados del estudiante) ---
+-- Eliminar políticas existentes si existen
+DROP POLICY IF EXISTS "Estudiantes ven sus sesiones" ON activity_sessions;
+DROP POLICY IF EXISTS "Profesores ven sesiones de sus clases" ON activity_sessions;
+DROP POLICY IF EXISTS "Acceso a quizzes propio o de profesor" ON generated_quizzes;
+
 -- Estudiantes solo ven sus propias sesiones
-create policy "Estudiantes ven sus sesiones" on activity_sessions
-for all using ( student_id = auth.uid() );
+CREATE POLICY "Estudiantes ven sus sesiones" ON activity_sessions
+FOR ALL USING ( student_id = auth.uid() );
 
 -- Profesores pueden ver sesiones de tareas que ellos crearon (Monitorización)
 -- (Esta consulta es un poco más compleja, simplificada para rendimiento)
-create policy "Profesores ven sesiones de sus clases" on activity_sessions
-for select using (
-    exists (
-        select 1 from tasks 
-        join classes on tasks.class_id = classes.id 
-        where tasks.id = activity_sessions.task_id 
-        and classes.professor_id = auth.uid()
+CREATE POLICY "Profesores ven sesiones de sus clases" ON activity_sessions
+FOR SELECT USING (
+    EXISTS (
+        SELECT 1 FROM tasks 
+        JOIN classes ON tasks.class_id = classes.id 
+        WHERE tasks.id = activity_sessions.task_id 
+        AND classes.professor_id = auth.uid()
     )
 );
 
 -- Repetir lógica similar para quizzes
-create policy "Acceso a quizzes propio o de profesor" on generated_quizzes
-for all using (
-    exists (
-        select 1 from activity_sessions 
-        where activity_sessions.id = session_id 
-        and (activity_sessions.student_id = auth.uid() -- Es mi quiz
+CREATE POLICY "Acceso a quizzes propio o de profesor" ON generated_quizzes
+FOR ALL USING (
+    EXISTS (
+        SELECT 1 FROM activity_sessions 
+        WHERE activity_sessions.id = session_id 
+        AND (activity_sessions.student_id = auth.uid() -- Es mi quiz
              OR 
-             exists ( -- O soy el profesor revisando
-                select 1 from tasks 
-                join classes on tasks.class_id = classes.id 
-                where tasks.id = activity_sessions.task_id 
-                and classes.professor_id = auth.uid()
+             EXISTS ( -- O soy el profesor revisando
+                SELECT 1 FROM tasks 
+                JOIN classes ON tasks.class_id = classes.id 
+                WHERE tasks.id = activity_sessions.task_id 
+                AND classes.professor_id = auth.uid()
              )
         )
     )

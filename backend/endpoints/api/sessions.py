@@ -21,8 +21,7 @@ class SessionStart(BaseModel):
 
 class SessionEnd(BaseModel):
     session_id: str
-    attention_score_avg: float
-    attention_data: Optional[dict] = None  # Datos detallados opcionales
+    attention_level: str  # 'alto', 'medio', 'bajo'
 
 
 class QuizAnswer(BaseModel):
@@ -58,13 +57,19 @@ async def end_session(data: SessionEnd):
     5. Retorna el cuestionario al frontend.
     """
     try:
+        # Validar que attention_level sea válido
+        if data.attention_level not in ['alto', 'medio', 'bajo']:
+            raise HTTPException(
+                status_code=400, 
+                detail="attention_level debe ser 'alto', 'medio' o 'bajo'"
+            )
+        
         print(f"[Session End] 🎬 Finalizando sesión: {data.session_id}")
-        print(f"[Session End] 📊 Score de atención: {data.attention_score_avg}")
+        print(f"[Session End] 📊 Nivel de atención: {data.attention_level}")
         
         # 1. Actualizar sesión
         update_data = {
-            "attention_score_avg": data.attention_score_avg,
-            "attention_data": data.attention_data,
+            "attention_level": data.attention_level,
             "status": "completed",
             "completed_at": datetime.utcnow().isoformat()
         }
@@ -100,9 +105,18 @@ async def end_session(data: SessionEnd):
         q_count = task_info.data.get("questions_count") or 5
         print(f"[Session End] 🔢 Número de preguntas: {q_count}")
 
+        # Convertir attention_level a score numérico para el quiz
+        # (generate_quiz necesita un float)
+        attention_score_map = {
+            'alto': 0.8,
+            'medio': 0.5,
+            'bajo': 0.3
+        }
+        attention_score = attention_score_map.get(data.attention_level, 0.5)
+
         quiz_questions = await ai_service.generate_quiz(
             text=content_for_quiz,
-            attention_score=data.attention_score_avg,
+            attention_score=attention_score,
             num_questions=q_count
         )
         print(f"[Session End] ✅ Quiz generado: {len(quiz_questions)} preguntas")

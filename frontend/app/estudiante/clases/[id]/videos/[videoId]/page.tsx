@@ -351,16 +351,27 @@ export default function VerVideoPage() {
       }
     }
 
+    // Calcular promedio de atención
     const avgAttention =
       accumulatedAttention.length > 0
         ? accumulatedAttention.reduce((a, b) => a + b, 0) /
           accumulatedAttention.length
         : 1.0;
 
+    // Convertir score numérico a nivel de atención
+    let attentionLevel: 'alto' | 'medio' | 'bajo';
+    if (avgAttention >= 0.7) {
+      attentionLevel = 'alto';
+    } else if (avgAttention >= 0.4) {
+      attentionLevel = 'medio';
+    } else {
+      attentionLevel = 'bajo';
+    }
+
     try {
       const res = await api.post("/sessions/end", {
         session_id: activeSessionId,
-        attention_score_avg: avgAttention,
+        attention_level: attentionLevel,
       });
       const { quiz_id } = res.data;
       router.push(`/estudiante/cuestionario/${quiz_id}`);
