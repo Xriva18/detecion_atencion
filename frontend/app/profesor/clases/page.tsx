@@ -50,37 +50,6 @@ interface StudentVideoResult {
   attentionLevel: "alto" | "medio" | "bajo";
 }
 
-const mockClasses: Class[] = [
-  {
-    id: "1",
-    name: "Matemáticas 101",
-    description:
-      "Introducción al Álgebra, ecuaciones lineales y desigualdades básicas para primer semestre.",
-    status: "Activo",
-    students: 35,
-    videos: 12,
-    schedule: "Lunes y Miércoles • 10:00 AM - 12:00 PM",
-    accessCode: "ABC123",
-  },
-  {
-    id: "2",
-    name: "Historia Universal",
-    description:
-      "La Revolución Industrial y sus consecuencias en la sociedad moderna.",
-    status: "Activo",
-    students: 28,
-    videos: 8,
-  },
-  {
-    id: "3",
-    name: "Química Orgánica",
-    description: "Fundamentos de química del carbono. Curso finalizado en 2023.",
-    status: "Archivado",
-    students: 42,
-    videos: 15,
-  },
-];
-
 // Mock data para videos
 const mockVideos: Video[] = [
   {
@@ -251,7 +220,7 @@ export default function GestiónClasesPage() {
   */
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [classes, setClasses] = useState<any[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Mock students y videos solo para la demo de "detalle", en real se cargarian de API tambien
@@ -260,10 +229,12 @@ export default function GestiónClasesPage() {
 
   const [searchTerm, setSearchTerm] = useState("");
   // Modals
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  const [selectedClass, setSelectedClass] = useState<any | null>(null);
+  const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "detail" | "videoResults">("list");
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [activeTab, setActiveTab] = useState<"videos" | "students">("videos");
@@ -281,7 +252,7 @@ export default function GestiónClasesPage() {
     try {
       setLoading(true);
       const res = await api.get('/classes/');
-      setClasses(res.data);
+      setClasses((res.data ?? []) as Class[]);
     } catch (error) {
       console.error("Failed to fetch classes", error);
     } finally {
@@ -295,7 +266,7 @@ export default function GestiónClasesPage() {
     // const videoId = searchParams.get("videoId"); // Simplificado
 
     if (classId && classes.length > 0) {
-      const classItem = classes.find((c: any) => c.id === classId);
+      const classItem = classes.find((c) => c.id === classId);
       if (classItem) {
         setSelectedClass(classItem);
         setViewMode("detail");
@@ -308,7 +279,7 @@ export default function GestiónClasesPage() {
     router.push("/profesor/crear-clase");
   };
 
-  const filteredClasses = classes.filter((classItem: any) => {
+  const filteredClasses = classes.filter((classItem: Class) => {
     const term = searchTerm.toLowerCase();
     return (
       classItem.name.toLowerCase().includes(term) ||
@@ -349,11 +320,13 @@ export default function GestiónClasesPage() {
     const newCode =
       Math.random().toString(36).substring(2, 5).toUpperCase() +
       Math.floor(Math.random() * 1000);
-    setClasses(
-      classes.map((c) =>
-        c.id === classId ? { ...c, accessCode: newCode } : c
-      )
+    const updated = classes.map((c) =>
+      c.id === classId ? { ...c, accessCode: newCode } : c
     );
+    setClasses(updated);
+    if (selectedClass?.id === classId) {
+      setSelectedClass({ ...selectedClass, accessCode: newCode });
+    }
   };
 
 
@@ -448,11 +421,6 @@ export default function GestiónClasesPage() {
         <Header
           title={selectedVideo.title}
           subtitle={`Resultados de estudiantes - ${selectedClass.name}`}
-          user={{
-            name: "Prof. Carlos Ruiz",
-            email: "carlos.ruiz@edu.com",
-            role: "Profesor",
-          }}
         />
         <div className="p-6 md:p-8 max-w-7xl mx-auto w-full flex flex-col gap-8">
           <button
@@ -586,11 +554,6 @@ export default function GestiónClasesPage() {
         <Header
           title={selectedClass.name}
           subtitle={selectedClass.description}
-          user={{
-            name: "Prof. Carlos Ruiz",
-            email: "carlos.ruiz@edu.com",
-            role: "Profesor",
-          }}
         />
         <div className="p-6 md:p-8 max-w-7xl mx-auto w-full flex flex-col gap-8">
           <button
@@ -933,14 +896,14 @@ export default function GestiónClasesPage() {
       <Header
         title="Gestión de Clases"
         subtitle="Crea y administra tus clases, genera códigos de acceso"
-        user={{
-          name: "Prof. Carlos Ruiz",
-          email: "carlos.ruiz@edu.com",
-          role: "Profesor",
-        }}
       />
       <div className="p-6 md:p-8 max-w-7xl mx-auto w-full flex flex-col gap-8">
-
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <p className="text-[#616f89]">Cargando clases...</p>
+          </div>
+        ) : (
+          <>
         {/* Filters */}
         <div className="flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
           <div className="w-full md:w-96 relative">
@@ -1060,6 +1023,8 @@ export default function GestiónClasesPage() {
             </div>
           ))}
         </div>
+          </>
+        )}
       </div>
 
       {/* Modals */}

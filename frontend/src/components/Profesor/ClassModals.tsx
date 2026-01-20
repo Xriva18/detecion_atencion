@@ -272,10 +272,12 @@ export function CodeModal({
   isOpen,
   onClose,
   classItem,
+  onGenerateNewCode,
 }: {
   isOpen: boolean;
   onClose: () => void;
   classItem: Class | null;
+  onGenerateNewCode?: () => void;
 }) {
   const code = classItem?.accessCode || "ABC123";
 
@@ -314,15 +316,30 @@ export function CodeModal({
               <p className="text-4xl font-bold text-primary tracking-widest mb-2">
                 {code}
               </p>
-              <button
-                onClick={handleCopyCode}
-                className="text-sm text-primary hover:text-blue-700 flex items-center gap-1 mx-auto"
-              >
-                <span className="material-symbols-outlined text-[18px]">
-                  content_copy
-                </span>
-                Copiar código
-              </button>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyCode}
+                  className="text-sm text-primary hover:text-blue-700 flex items-center gap-1"
+                >
+                  <span className="material-symbols-outlined text-[18px]">
+                    content_copy
+                  </span>
+                  Copiar código
+                </button>
+                {onGenerateNewCode && (
+                  <button
+                    type="button"
+                    onClick={onGenerateNewCode}
+                    className="text-sm text-primary hover:text-blue-700 flex items-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      refresh
+                    </span>
+                    Generar nuevo
+                  </button>
+                )}
+              </div>
             </div>
             <p className="text-xs text-[#616f89] mt-4">
               Comparte este código con tus estudiantes para que se unan a la
