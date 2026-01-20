@@ -6,12 +6,13 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from typing import List, Optional
 from core.config import settings
-from services.ai_service import ai_service
 from services.video_service import video_service
+from services.transcription_service import transcription_service
 from supabase import create_client, Client
 import uuid
 import re
 import os
+import asyncio
 
 router = APIRouter(prefix="/tasks", tags=["Tareas/Videos"])
 
@@ -64,7 +65,7 @@ class TaskResponse(BaseModel):
     title: str
     description: Optional[str]
     video_url: str
-    video_summary: Optional[str]
+    transcription: Optional[str]
 
 
 @router.get("/class/{class_id}", response_model=List[TaskResponse])
@@ -111,8 +112,8 @@ async def upload_task_video(
     Sube un video para una nueva tarea.
     1. Guarda el video localmente (temporalmente).
     2. Sube al Storage de Supabase.
-    3. Genera un resumen con IA (simplificado: usamos el título por ahora).
-    4. Crea el registro en la tabla 'tasks'.
+    3. Transcribe el video con Whisper y genera el resumen.
+    4. Crea el registro en la tabla 'tasks' con el resumen.
     """
     try:
         # 1. Guardar localmente
@@ -132,16 +133,37 @@ async def upload_task_video(
         # Obtener URL pública
         video_url = supabase.storage.from_("videos").get_public_url(file_name)
         
-        # 3. Generar resumen con IA (placeholder: usaremos descripción si existe)
-        # En una implementación completa, aquí extraeríamos audio -> transcripción -> resumen
-        summary_text = f"Video sobre: {title}. {description or ''}"
-        if settings.gemini_api_key:
-            try:
-                summary = await ai_service.summarize_text(summary_text)
-            except Exception:
-                summary = "Resumen no disponible (Error de IA)"
-        else:
-            summary = "Resumen no disponible (IA no configurada)"
+        # 3. Transcribir video con Whisper y generar resumen
+        print(f"[upload_task_video] Iniciando transcripción del video...")
+        transcribe_task_id = transcription_service.start_transcription(local_path)
+        
+        # Polling para esperar la transcripción (máximo 10 minutos)
+        summary = "Resumen no disponible (tiempo de espera agotado)."
+        attempts = 0
+        max_attempts = 300  # 300 intentos * 2 segundos = 10 minutos
+        
+        while attempts < max_attempts:
+            await asyncio.sleep(2)  # Esperar 2 segundos entre intentos
+            attempts += 1
+            
+            status_data = transcription_service.get_task_status(transcribe_task_id)
+            
+            if status_data is None:
+                # Tarea aún no registrada, continuar esperando
+                continue
+            
+            if status_data.get("status") == "completed":
+                summary = status_data.get("text") or "Transcripción vacía."
+                print(f"[upload_task_video] Transcripción completada ({attempts * 2}s)")
+                break
+            elif status_data.get("status") == "failed":
+                error_msg = status_data.get("error", "Error en transcripción.")
+                summary = f"Resumen no disponible. {error_msg}"
+                print(f"[upload_task_video] Error en transcripción: {error_msg}")
+                break
+        
+        if attempts >= max_attempts:
+            print(f"[upload_task_video] Timeout esperando transcripción después de {max_attempts * 2}s")
         
         # 4. Crear registro en BD
         task_data = {
@@ -149,7 +171,7 @@ async def upload_task_video(
             "title": title,
             "description": description,
             "video_url": video_url,
-            "video_summary": summary,
+            "transcription": summary,  # Guardamos la transcripción en lugar del resumen
             "questions_count": questions_count
         }
         

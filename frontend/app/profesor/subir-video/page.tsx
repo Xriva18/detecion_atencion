@@ -276,7 +276,7 @@ export default function SubirVideoPage() {
                         }`}
                     >
                       {isLoading && <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>}
-                      {isLoading ? 'Subiendo...' : 'Subir Video'}
+                      {isLoading ? 'Subiendo video y generando resumen (puede tardar varios minutos)...' : 'Subir Video'}
                     </button>
                   </div>
                 </form>
@@ -304,7 +304,7 @@ export default function SubirVideoPage() {
                 </div>
               </div>
               <p className="text-[#616f89] mb-6">
-                El video ha sido subido y procesado. La IA generará el cuestionario automáticamente.
+                El video ha sido subido y el resumen generado correctamente. La IA generará el cuestionario automáticamente cuando el estudiante complete la sesión.
               </p>
               <div className="flex justify-end">
                 <button

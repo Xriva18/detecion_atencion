@@ -88,15 +88,15 @@ async def end_session(data: SessionEnd):
         print(f"[Session End] 📋 Task ID: {session_info.data['task_id']}")
         
         task_info = supabase.table("tasks") \
-            .select("video_summary, title, description, questions_count") \
+            .select("transcription, title, description, questions_count") \
             .eq("id", session_info.data["task_id"]) \
             .single() \
             .execute()
         print(f"[Session End] 📝 Task info - Title: {task_info.data.get('title')}")
-        print(f"[Session End] 📝 Video summary: {(task_info.data.get('video_summary') or 'No disponible')[:100]}...")
+        print(f"[Session End] 📝 Transcription: {(task_info.data.get('transcription') or 'No disponible')[:100]}...")
         
         # 3. Generar cuestionario con IA
-        content_for_quiz = task_info.data.get("video_summary") or \
+        content_for_quiz = task_info.data.get("transcription") or \
                           f"{task_info.data.get('title', '')} {task_info.data.get('description', '')}"
         
         print(f"[Session End] 📄 Contenido para quiz ({len(content_for_quiz)} chars): {content_for_quiz[:200]}...")

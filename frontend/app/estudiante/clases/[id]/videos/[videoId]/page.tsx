@@ -114,7 +114,7 @@ export default function VerVideoPage() {
           title: task.title,
           description: task.description || "",
           videoUrl: task.video_url,
-          videoSummary: task.video_summary, // Importante para el quiz
+          videoSummary: task.transcription, // Usa transcription en lugar de video_summary
           className: className,
           professor: professorName,
           duration: "10:00", // Placeholder, o podrías obtenerlo de los metadatos del video

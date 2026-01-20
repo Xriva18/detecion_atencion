@@ -64,9 +64,8 @@ create table if not exists tasks (
   description text,            -- 'tarea_des'
   video_url text not null,     -- 'tarea_video_url' (Ruta en Supabase Storage)
   
-  -- Campos para IA
-  video_summary text,          -- Resumen generado por IA
-  video_transcript text,       -- Transcripción completa
+  -- Campo para IA
+  transcription text,          -- Transcripción completa del video
   
   duration_seconds int,        -- 'tarea_duracion'
   is_active boolean default true, -- 'tarea_habil'
