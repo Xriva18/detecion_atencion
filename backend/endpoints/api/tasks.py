@@ -66,6 +66,9 @@ class TaskResponse(BaseModel):
     description: Optional[str]
     video_url: str
     transcription: Optional[str]
+    inicio_habilitado: Optional[str] = None
+    fin_habilitado: Optional[str] = None
+    is_active: Optional[bool] = None
 
 
 @router.get("/class/{class_id}", response_model=List[TaskResponse])
@@ -106,6 +109,10 @@ async def upload_task_video(
     title: str = Form(...),
     description: str = Form(None),
     questions_count: int = Form(5),
+    inicio_habilitado: Optional[str] = Form(None),  # ISO format datetime string
+    fin_habilitado: Optional[str] = Form(None),    # ISO format datetime string
+    duration_seconds: Optional[int] = Form(None),
+    is_active: Optional[str] = Form("true"),  # String "true" o "false"
     video: UploadFile = File(...)
 ):
     """
@@ -174,6 +181,32 @@ async def upload_task_video(
             "transcription": summary,  # Guardamos la transcripción en lugar del resumen
             "questions_count": questions_count
         }
+        
+        # Agregar fechas de disponibilidad si se proporcionaron
+        if inicio_habilitado:
+            task_data["inicio_habilitado"] = inicio_habilitado
+        if fin_habilitado:
+            task_data["fin_habilitado"] = fin_habilitado
+        
+        # Agregar duración del video si se proporcionó, o intentar obtenerla del archivo
+        final_duration = duration_seconds
+        if final_duration is None:
+            # Intentar obtener la duración del archivo local usando moviepy como fallback
+            try:
+                from moviepy.editor import VideoFileClip
+                with VideoFileClip(local_path) as clip:
+                    final_duration = int(clip.duration)
+                print(f"[upload_task_video] Duración obtenida del archivo: {final_duration}s")
+            except Exception as e:
+                print(f"[upload_task_video] No se pudo obtener duración del video: {e}")
+                final_duration = None
+        
+        if final_duration is not None:
+            task_data["duration_seconds"] = final_duration
+        
+        # Agregar is_active (convertir string a boolean)
+        if is_active:
+            task_data["is_active"] = is_active.lower() == "true"
         
         try:
             db_response = supabase.table("tasks").insert(task_data).execute()

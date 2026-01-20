@@ -26,6 +26,7 @@ export default function SubirVideoPage() {
   // Estados nuevos para la integración
   const [classes, setClasses] = useState<{ id: string, name: string }[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [durationSeconds, setDurationSeconds] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -44,9 +45,34 @@ export default function SubirVideoPage() {
     fetchClasses();
   }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
+      const file = e.target.files[0];
+      setSelectedFile(file);
+      
+      // Obtener duración del video
+      try {
+        const videoUrl = URL.createObjectURL(file);
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        
+        video.onloadedmetadata = () => {
+          window.URL.revokeObjectURL(videoUrl);
+          const duration = Math.floor(video.duration);
+          setDurationSeconds(duration);
+        };
+        
+        video.onerror = () => {
+          window.URL.revokeObjectURL(videoUrl);
+          console.error("Error cargando metadatos del video");
+          setDurationSeconds(null);
+        };
+        
+        video.src = videoUrl;
+      } catch (error) {
+        console.error("Error obteniendo duración del video:", error);
+        setDurationSeconds(null);
+      }
     }
   };
 
@@ -69,8 +95,25 @@ export default function SubirVideoPage() {
       data.append("questions_count", formData.numberOfQuestions.toString());
       data.append("video", selectedFile);
 
-      // Nota: startDate, endDate, numberOfQuestions no están aún en el backend endpoint /tasks/upload
-      // Se podrían agregar si actualizamos el backend, por ahora los ignoramos o los mandamos como extra si el backend lo soportara.
+      // Agregar fechas de disponibilidad si se proporcionaron
+      if (formData.startDate) {
+        // Convertir datetime-local a ISO string
+        const startDateISO = new Date(formData.startDate).toISOString();
+        data.append("inicio_habilitado", startDateISO);
+      }
+      if (formData.endDate) {
+        // Convertir datetime-local a ISO string
+        const endDateISO = new Date(formData.endDate).toISOString();
+        data.append("fin_habilitado", endDateISO);
+      }
+      
+      // Agregar duración del video si se obtuvo
+      if (durationSeconds !== null) {
+        data.append("duration_seconds", durationSeconds.toString());
+      }
+      
+      // Agregar is_active (por defecto true)
+      data.append("is_active", "true");
 
       await api.post('/tasks/upload', data, {
         headers: {
@@ -230,7 +273,7 @@ export default function SubirVideoPage() {
                     </select>
                   </label>
 
-                  {/* Fechas (Visual por ahora, pendiente en backend) */}
+                  {/* Fechas de disponibilidad */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <label className="flex flex-col gap-2">
                       <span className="text-[#111318] text-sm font-medium">
@@ -243,6 +286,43 @@ export default function SubirVideoPage() {
                         onChange={(e) =>
                           setFormData({ ...formData, startDate: e.target.value })
                         }
+                      />
+                    </label>
+                    <label className="flex flex-col gap-2">
+                      <span className="text-[#111318] text-sm font-medium">
+                        Fecha de Fin
+                      </span>
+                      <input
+                        type="datetime-local"
+                        className="w-full rounded-lg border border-[#dbdfe6] bg-white text-[#111318] h-12 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                        value={formData.endDate}
+                        onChange={(e) =>
+                          setFormData({ ...formData, endDate: e.target.value })
+                        }
+                      />
+                    </label>
+                  </div>
+                  
+                  {/* Duración del video y número de preguntas */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label className="flex flex-col gap-2">
+                      <span className="text-[#111318] text-sm font-medium">
+                        Duración del Video
+                      </span>
+                      <input
+                        type="text"
+                        className="w-full rounded-lg border border-[#dbdfe6] bg-gray-50 text-[#111318] h-12 px-4 focus:outline-none transition-all"
+                        value={durationSeconds !== null ? (() => {
+                          const hours = Math.floor(durationSeconds / 3600);
+                          const minutes = Math.floor((durationSeconds % 3600) / 60);
+                          const seconds = durationSeconds % 60;
+                          if (hours > 0) {
+                            return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                          }
+                          return `${minutes}:${String(seconds).padStart(2, '0')}`;
+                        })() : "Se calculará automáticamente"}
+                        disabled
+                        readOnly
                       />
                     </label>
                     <label className="flex flex-col gap-2">

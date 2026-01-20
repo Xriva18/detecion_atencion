@@ -67,8 +67,13 @@ create table if not exists tasks (
   -- Campo para IA
   transcription text,          -- Transcripción completa del video
   
-  duration_seconds int,        -- 'tarea_duracion'
-  is_active boolean default true, -- 'tarea_habil'
+  duration_seconds int null,  -- 'tarea_duracion' (duración en segundos, puede ser null si no se puede obtener)
+  is_active boolean default true, -- 'tarea_habil' (actualizado automáticamente por trigger)
+  
+  -- Fechas de disponibilidad
+  inicio_habilitado timestamp with time zone,  -- Fecha/hora de inicio de disponibilidad
+  fin_habilitado timestamp with time zone,       -- Fecha/hora de fin de disponibilidad
+  
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
