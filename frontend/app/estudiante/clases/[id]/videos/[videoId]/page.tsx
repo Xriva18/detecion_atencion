@@ -50,6 +50,7 @@ export default function VerVideoPage() {
   const lowAttentionTimerRef = useRef<NodeJS.Timeout | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const showSummaryModalRef = useRef(showSummaryModal);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
     showSummaryModalRef.current = showSummaryModal;
@@ -65,6 +66,8 @@ export default function VerVideoPage() {
 
   // Ciclo de vida de la cámara según showSummaryModal: parar al abrir modal, init al cerrar y en mount, cleanup
   useEffect(() => {
+    isMountedRef.current = true;
+
     if (showSummaryModal) {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
@@ -82,7 +85,8 @@ export default function VerVideoPage() {
       navigator.mediaDevices
         .getUserMedia({ video: { width: 640, height: 480 }, audio: false })
         .then((mediaStream) => {
-          if (showSummaryModalRef.current) {
+          // Verificar si el componente sigue montado y si el modal no se abrió
+          if (!isMountedRef.current || showSummaryModalRef.current) {
             mediaStream.getTracks().forEach((t) => t.stop());
             return;
           }
@@ -95,6 +99,7 @@ export default function VerVideoPage() {
     }
 
     return () => {
+      isMountedRef.current = false;
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
@@ -106,6 +111,27 @@ export default function VerVideoPage() {
       }
     };
   }, [showSummaryModal]);
+
+  // Cleanup garantizado al desmontar el componente (navegación fuera de la página)
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      // Detener cámara si aún está activa
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+      // Limpiar timers
+      if (lowAttentionTimerRef.current) {
+        clearTimeout(lowAttentionTimerRef.current);
+        lowAttentionTimerRef.current = null;
+      }
+      if (pausedTimeIntervalRef.current) {
+        clearInterval(pausedTimeIntervalRef.current);
+        pausedTimeIntervalRef.current = null;
+      }
+    };
+  }, []);
 
   // Cargar datos del video
   useEffect(() => {
