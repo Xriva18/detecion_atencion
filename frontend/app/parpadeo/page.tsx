@@ -127,14 +127,28 @@ export default function ParpadeoPage() {
   }, [blinkCount, isPaused, connectionStatus]);
 
   // Handler para manejar la detección de parpadeos
-  const handleBlinkDetection = () => {
-    // Actualizar estado de conexión (convertir BlinkDetectionResponse a FaceDetectionResponse para compatibilidad)
+  const handleBlinkDetection = (data: any) => {
+    // Actualizar estado de conexión
     handleFrameSent({
       detected: true,
       coordinates: null,
       confidence: 1.0,
     });
-    // El contador se actualiza automáticamente vía WebSocket cuando hay un parpadeo
+
+    // Usar la detección de postura de cabeza para determinar atención
+    // Si la cabeza no está frontal, no está viendo la pantalla
+    if (data && data.head_pose) {
+      const isFocused = data.head_pose === "Frontal";
+      setIsWatchingScreen(isFocused);
+      // Podemos usar setChangeCount para mostrar debug de parpadeos si queremos, 
+      // pero la lógica principal ahora es head_pose
+      if (!isFocused) {
+        // Si no mira, forzamos que se note el cambio
+        setChangeCount(10); // Valor alto para indicar "inestable/distraído" en el UI anterior
+      } else {
+        setChangeCount(0);
+      }
+    }
   };
 
   const togglePause = () => {

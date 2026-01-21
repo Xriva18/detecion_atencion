@@ -18,11 +18,18 @@ router = APIRouter()
 # Instancia del gestor de conexiones para este WebSocket
 manager = ConnectionManager()
 
-# Inicializar servicio de detección de parpadeos
-blink_detection_service = BlinkDetectionService(
-    static_image_mode=True,
-    max_num_faces=1
-)
+# Servicios se inicializan de forma "lazy" para evitar errores de MediaPipe al importar
+_blink_detection_service = None
+
+def get_blink_detection_service():
+    """Inicializa el servicio de detección de parpadeo solo cuando se necesita."""
+    global _blink_detection_service
+    if _blink_detection_service is None:
+        _blink_detection_service = BlinkDetectionService(
+            static_image_mode=True,
+            max_num_faces=1
+        )
+    return _blink_detection_service
 
 
 @router.websocket("/ws/detect/blink")
@@ -73,7 +80,7 @@ async def websocket_blink_detection(websocket: WebSocket):
                 
                 # Detectar parpadeo
                 try:
-                    result = blink_detection_service.detect_blink(img)
+                    result = get_blink_detection_service().detect_blink(img)
                     
                     # Incrementar contador si se detecta parpadeo
                     if result.blinking:

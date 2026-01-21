@@ -9,16 +9,31 @@ from utils.image_utils import base64_to_opencv
 
 router = APIRouter()
 
-# Inicializar servicios (singleton por endpoint)
-face_detection_service = FaceDetectionService(
-    model_selection=settings.face_detection_model_selection,
-    min_detection_confidence=settings.face_detection_min_confidence
-)
+# Servicios se inicializan de forma "lazy" para evitar errores de MediaPipe al importar
+_face_detection_service = None
+_blink_detection_service = None
 
-blink_detection_service = BlinkDetectionService(
-    static_image_mode=True,
-    max_num_faces=1
-)
+
+def get_face_detection_service():
+    """Inicializa el servicio de detección facial solo cuando se necesita."""
+    global _face_detection_service
+    if _face_detection_service is None:
+        _face_detection_service = FaceDetectionService(
+            model_selection=settings.face_detection_model_selection,
+            min_detection_confidence=settings.face_detection_min_confidence
+        )
+    return _face_detection_service
+
+
+def get_blink_detection_service():
+    """Inicializa el servicio de detección de parpadeo solo cuando se necesita."""
+    global _blink_detection_service
+    if _blink_detection_service is None:
+        _blink_detection_service = BlinkDetectionService(
+            static_image_mode=True,
+            max_num_faces=1
+        )
+    return _blink_detection_service
 
 
 @router.post("/detect/face", response_model=FaceDetectionResponse)
@@ -32,15 +47,22 @@ async def detect_face(request: FaceDetectionRequest):
     Returns:
         FaceDetectionResponse con información sobre la detección del rostro
     """
+    print("=" * 50)
+    print("[ENDPOINT /detect/face] ✅ REQUEST RECIBIDO")
+    print("=" * 50)
     try:
         # Convertir Base64 a OpenCV
         img = base64_to_opencv(request.image)
+        print(f"[ENDPOINT] Imagen convertida: {img.shape if img is not None else 'None'}")
         
         # Detectar rostro
-        result = face_detection_service.detect_face(img)
+        result = get_face_detection_service().detect_face(img)
+        
+        print(f"[ENDPOINT] Resultado: detected={result.detected}, confidence={result.confidence}")
         
         return result
     except Exception as e:
+        print(f"[ENDPOINT] ⚠️ ERROR: {e}")
         # En caso de error, retornar que no se detectó
         return FaceDetectionResponse(
             detected=False,
@@ -65,7 +87,7 @@ async def detect_blink(request: FaceDetectionRequest):
         img = base64_to_opencv(request.image)
         
         # Detectar parpadeo
-        result = blink_detection_service.detect_blink(img)
+        result = get_blink_detection_service().detect_blink(img)
         
         # Incrementar contador si se detecta parpadeo
         if result.blinking:
@@ -102,4 +124,3 @@ async def reset_blink_count_endpoint():
     """
     reset_blink_count()
     return {"message": "Contador de parpadeos reiniciado", "blink_count": 0}
-

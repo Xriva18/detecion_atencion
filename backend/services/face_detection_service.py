@@ -31,11 +31,15 @@ class FaceDetectionService:
             FaceDetectionResponse con información sobre la detección
         """
         try:
+            print(f"[FaceDetection] Procesando imagen de tamaño: {img.shape if img is not None else 'None'}")
+            
             # Convertir BGR a RGB (MediaPipe usa RGB)
             img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
             # Detectar rostros
             results = self.face_detection.process(img_rgb)
+            
+            print(f"[FaceDetection] Detecciones: {len(results.detections) if results.detections else 0}")
 
             # Verificar si se detectó algún rostro
             if results.detections and len(results.detections) > 0:
@@ -52,6 +56,8 @@ class FaceDetectionService:
                 y = int(bbox.ymin * h)
                 width = int(bbox.width * w)
                 height = int(bbox.height * h)
+                
+                print(f"[FaceDetection] ✅ Rostro detectado con confianza: {confidence:.2f}")
 
                 return FaceDetectionResponse(
                     detected=True,
@@ -60,12 +66,14 @@ class FaceDetectionService:
                 )
             else:
                 # No se detectó ningún rostro
+                print("[FaceDetection] ❌ No se detectó rostro")
                 return FaceDetectionResponse(
                     detected=False, coordinates=None, confidence=0.0
                 )
 
-        except Exception:
+        except Exception as e:
             # En caso de error, retornar que no se detectó
+            print(f"[FaceDetection] ⚠️ Error: {e}")
             return FaceDetectionResponse(
                 detected=False, coordinates=None, confidence=0.0
             )

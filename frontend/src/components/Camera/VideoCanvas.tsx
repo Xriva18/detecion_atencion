@@ -37,12 +37,12 @@ export default function VideoCanvas({
         // Dibujar rectángulo alrededor del rostro solo si está detectado y el video no está pausado
         if (faceCoordinates && !isPaused) {
           const { x, y, w, h } = faceCoordinates;
-          
+
           // Configurar estilo del rectángulo
           ctx.strokeStyle = "#00ff00"; // Verde
           ctx.lineWidth = 3;
           ctx.setLineDash([]);
-          
+
           // Dibujar rectángulo (tener en cuenta el flip horizontal del canvas)
           // Como el canvas tiene transform: scaleX(-1), necesitamos ajustar las coordenadas
           const adjustedX = width - x - w;
@@ -115,14 +115,19 @@ export default function VideoCanvas({
         // Convertir canvas a base64
         const base64Image = canvas.toDataURL("image/jpeg", 0.8);
 
+        console.log("[VideoCanvas] Enviando frame al backend...");
+
         // Enviar al backend
         const response = await enviarFrameAlBackend(base64Image);
+
+        console.log("[VideoCanvas] Respuesta recibida:", response);
 
         // Llamar callback si está disponible
         if (onFrameSent) {
           onFrameSent(response);
         }
       } catch (error) {
+        console.error("[VideoCanvas] Error capturando frame:", error);
         // Manejar error sin bloquear la captura
         if (onFrameError) {
           onFrameError(
@@ -158,7 +163,7 @@ export default function VideoCanvas({
 
   if (!stream) {
     return (
-      <div 
+      <div
         className="flex items-center justify-center bg-gray-200 dark:bg-gray-800 rounded-lg w-full max-w-full"
         style={{ maxWidth: `${width}px`, aspectRatio: `${width}/${height}` }}
       >
@@ -181,10 +186,10 @@ export default function VideoCanvas({
       <canvas
         ref={canvasRef}
         className="rounded-lg border-2 border-gray-300 dark:border-gray-700 w-full h-auto max-w-full"
-        style={{ 
-          maxWidth: `${width}px`, 
-          aspectRatio: `${width}/${height}`, 
-          transform: 'scaleX(-1)' 
+        style={{
+          maxWidth: `${width}px`,
+          aspectRatio: `${width}/${height}`,
+          transform: 'scaleX(-1)'
         }}
       />
     </div>
