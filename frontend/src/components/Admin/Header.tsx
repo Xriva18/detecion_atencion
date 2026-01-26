@@ -5,12 +5,21 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import MFADropdown from "./MFADropdown";
 
 interface HeaderProps {
-  title: string;
+  title: string | React.ReactNode;
   subtitle?: string;
+  user?: {
+    name: string;
+    email: string;
+    role: string;
+  };
 }
 
-export default function Header({ title, subtitle }: HeaderProps) {
-  const { user, loading } = useCurrentUser();
+export default function Header({ title, subtitle, user: propUser }: HeaderProps) {
+  const { user: hookUser, loading } = useCurrentUser();
+
+  // Si nos pasan un usuario por props, usamos ese (asumiendo que viene formateado)
+  // Si no, usamos el del hook (que es el objeto User de Supabase)
+  const user = hookUser;
   const [showDropdown, setShowDropdown] = useState(false);
 
   // Cerrar dropdown al presionar Escape
@@ -27,7 +36,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
     }
   }, [showDropdown]);
 
-  if (loading) {
+  if (loading && !propUser) {
     return (
       <header className="sticky top-0 z-10 w-full bg-white/80 backdrop-blur-md border-b border-[#e5e7eb] px-6 py-3 flex items-center justify-between">
         <div className="flex flex-col">
@@ -39,24 +48,39 @@ export default function Header({ title, subtitle }: HeaderProps) {
     );
   }
 
-  const displayName =
-    user?.user_metadata?.name ||
-    user?.user_metadata?.full_name ||
-    user?.email?.split("@")[0] ||
-    "Usuario";
-  const displayRole =
-    user?.app_metadata?.role === 1
-      ? "Administrador"
-      : user?.app_metadata?.role === 2
-      ? "Profesor"
-      : user?.app_metadata?.role === 3
-      ? "Estudiante"
-      : "Usuario";
-  const avatarUrl = user?.user_metadata?.avatar_url;
+  // Lógica para determinar datos a mostrar
+  let displayName = "Usuario";
+  let displayRole = "Usuario";
+  let avatarUrl = undefined;
+  let email = "";
+
+  if (propUser) {
+    displayName = propUser.name;
+    displayRole = propUser.role;
+    email = propUser.email;
+  } else if (user) {
+    displayName =
+      user?.user_metadata?.name ||
+      user?.user_metadata?.full_name ||
+      user?.email?.split("@")[0] ||
+      "Usuario";
+
+    displayRole =
+      user?.app_metadata?.role === 1
+        ? "Administrador"
+        : user?.app_metadata?.role === 2
+          ? "Profesor"
+          : user?.app_metadata?.role === 3
+            ? "Estudiante"
+            : "Usuario";
+
+    avatarUrl = user?.user_metadata?.avatar_url;
+    email = user?.email || "";
+  }
 
   const userProfile = {
     name: displayName,
-    email: user?.email || "",
+    email: email,
     role: displayRole,
     avatar: avatarUrl,
   };
@@ -96,9 +120,8 @@ export default function Header({ title, subtitle }: HeaderProps) {
               <span className="text-[10px] text-[#616f89]">{displayRole}</span>
             </div>
             <span
-              className={`material-symbols-outlined text-sm text-gray-500 transition-transform ${
-                showDropdown ? "rotate-180" : ""
-              }`}
+              className={`material-symbols-outlined text-sm text-gray-500 transition-transform ${showDropdown ? "rotate-180" : ""
+                }`}
             >
               expand_more
             </span>

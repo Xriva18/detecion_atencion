@@ -1,7 +1,7 @@
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-mediapipe==0.10.9
-protobuf==3.20.3
+mediapipe>=0.10.14
+protobuf>=4.23.0
 opencv-python
 numpy
 pydantic-settings
@@ -12,3 +12,4 @@ moviepy
 python-multipart
 aiohttp
 openai-whisper
+PyJWT

@@ -59,8 +59,17 @@ export default function VerVideoPage() {
 
   // Sesión ID
   const [sessionId, setSessionId] = useState<string | null>(null);
-  // Usuario Mock (Demo UUID válido en BD)
-  const userId = "32545b5a-71d3-4348-bc25-e0e4b8e31fa8";
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { createClientSupabase } = await import("@/utils/supabase/client");
+      const supabase = createClientSupabase();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
+    };
+    getUser();
+  }, []);
 
   // Stream de cámara
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -258,8 +267,7 @@ export default function VerVideoPage() {
 
     // Debug logging
     console.log(
-      `[Atención] faceDetected=${data.faceDetected}, blinking=${
-        data.blinking
+      `[Atención] faceDetected=${data.faceDetected}, blinking=${data.blinking
       }, noAtento:${notAttentiveCount}/${historyLength}, score=${newScore.toFixed(
         2
       )}`
@@ -381,7 +389,7 @@ export default function VerVideoPage() {
   const handleConfirmFinish = async (attentionLevel: "alto" | "medio" | "bajo") => {
     setShowSummaryModal(false);
     setIsGeneratingQuiz(true);
-    
+
     let activeSessionId = sessionId;
 
     if (!activeSessionId) {
@@ -431,7 +439,7 @@ export default function VerVideoPage() {
               <div className="absolute inset-0 border-4 border-primary/20 rounded-full"></div>
               <div className="absolute inset-0 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             </div>
-            
+
             {/* Texto de carga */}
             <div className="text-center space-y-2">
               <h2 className="text-2xl font-bold text-[#111318]">
@@ -519,51 +527,48 @@ export default function VerVideoPage() {
                 </p>
               </div>
             ) : (
-            <div className="w-full aspect-video bg-black/80 rounded-lg border-2 border-[#e5e7eb] overflow-hidden shadow-lg relative">
-              <VideoCanvasBlink
-                isActive={!showSummaryModal}
-                stream={stream}
-                onBlink={handleAttentionUpdate}
-                width={280}
-                height={210}
-              />
-              <div
-                className={`absolute bottom-0 left-0 right-0 px-3 py-2 flex flex-col items-center gap-1 transition-all duration-300 ${
-                  attentionLevel === "Alto"
-                    ? "bg-green-900/70"
-                    : attentionLevel === "Medio"
-                    ? "bg-yellow-900/70"
-                    : "bg-red-900/70"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <div
-                    className={`w-2.5 h-2.5 rounded-full ${
-                      attentionLevel === "Alto"
-                        ? "bg-green-400 animate-pulse"
-                        : attentionLevel === "Medio"
-                        ? "bg-yellow-400 animate-pulse"
-                        : "bg-red-400 animate-ping"
-                    }`}
-                  ></div>
-                  <span
-                    className={`text-xs font-bold uppercase tracking-wide ${
-                      attentionLevel === "Alto"
-                        ? "text-green-300"
-                        : attentionLevel === "Medio"
-                        ? "text-yellow-300"
-                        : "text-red-300"
-                    }`}
-                  >
-                    {attentionLevel === "Alto"
-                      ? "✓ Atento"
+              <div className="w-full aspect-video bg-black/80 rounded-lg border-2 border-[#e5e7eb] overflow-hidden shadow-lg relative">
+                <VideoCanvasBlink
+                  isActive={!showSummaryModal}
+                  stream={stream}
+                  onBlink={handleAttentionUpdate}
+                  width={280}
+                  height={210}
+                />
+                <div
+                  className={`absolute bottom-0 left-0 right-0 px-3 py-2 flex flex-col items-center gap-1 transition-all duration-300 ${attentionLevel === "Alto"
+                      ? "bg-green-900/70"
                       : attentionLevel === "Medio"
-                      ? "⚠ Atención Media"
-                      : "⚠ Distraído"}
-                  </span>
+                        ? "bg-yellow-900/70"
+                        : "bg-red-900/70"
+                    }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-2.5 h-2.5 rounded-full ${attentionLevel === "Alto"
+                          ? "bg-green-400 animate-pulse"
+                          : attentionLevel === "Medio"
+                            ? "bg-yellow-400 animate-pulse"
+                            : "bg-red-400 animate-ping"
+                        }`}
+                    ></div>
+                    <span
+                      className={`text-xs font-bold uppercase tracking-wide ${attentionLevel === "Alto"
+                          ? "text-green-300"
+                          : attentionLevel === "Medio"
+                            ? "text-yellow-300"
+                            : "text-red-300"
+                        }`}
+                    >
+                      {attentionLevel === "Alto"
+                        ? "✓ Atento"
+                        : attentionLevel === "Medio"
+                          ? "⚠ Atención Media"
+                          : "⚠ Distraído"}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
             )}
           </div>
 

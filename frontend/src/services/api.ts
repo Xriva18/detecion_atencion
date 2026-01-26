@@ -7,6 +7,30 @@ const api = axios.create({
     },
 });
 
+import { createClientSupabase } from "@/utils/supabase/client";
+
+// Interceptor de peticiones para agregar el token
+api.interceptors.request.use(
+    async (config) => {
+        try {
+            // Usar metodo oficial para obtener sesión
+            const supabase = createClientSupabase();
+            const { data } = await supabase.auth.getSession();
+            const token = data.session?.access_token;
+
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
+        } catch (e) {
+            console.warn("Error attaching auth token", e);
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
+);
+
 // Interceptor para debugging (opcional)
 api.interceptors.response.use(
     (response) => response,

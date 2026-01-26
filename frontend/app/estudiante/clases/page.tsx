@@ -1,54 +1,49 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "@/components/Admin/Header";
 import Link from "next/link";
 import Image from "next/image";
+import api from "@/services/api";
+import { getErrorMessage } from "@/services/error";
 
 export default function MisClasesPage() {
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [accessCode, setAccessCode] = useState("");
 
-  // Mock data - En producción esto vendría de una API
-  const mockClasses = [
-    {
-      id: "1",
-      name: "Cálculo Diferencial",
-      category: "Matemáticas",
-      professor: "Prof. Alejandro García",
-      imageUrl:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuC6V6yaUyuRkkVoKcnf0j7myrxgka2eCUnZkmEbt1WmBYDftG8-guNH7zK2mm7iFVGyAsaxspVlc11HsydQ001Nlw_gOLQWjdLnA3qc6CcBBnGdgKDTIbhYn4pkIsbHl6_NdRlds5AgXPmrwij5-p11TpS7kgrj0dfBVNvcj5cHOkWrDo8Ez4UMEutDeNw3Pikk56QoZdhvAkWxtKOBNxZDigq0NjExr4glHrJCp2QduApEmiInqEUvjipQDt5KgbzIFy3Z4O-JoL0",
-      videosCount: 12,
-      studentsCount: 35,
-    },
-    {
-      id: "2",
-      name: "Historia del Arte Moderno",
-      category: "Historia",
-      professor: "Dra. Elena Torres",
-      imageUrl:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuDFYenbfqYicawuxXSFTXCHW65tPOCkL0VREzyySn74jZp_QYpiJ0buWeamw-6ZEx7lSvLp7zSakjLETfpoxwDTmRKEL1Q13J9V9eN1U7ofchian5WmQbw0kjgR1LcYKHdesBjVIqlzPR3151So4jRjBEirrh-RxnQWaLqGpzE3ZKZ0ik63Eh4LdTt-aDzYQJuDJ_7EmLJc5VLNd-aTEYmGrM-oa0lbuIuO1hqZD39COH0sNvUPM1xJpH6uhJiorPvRvYUbWxktUaE",
-      videosCount: 8,
-      studentsCount: 28,
-    },
-    {
-      id: "3",
-      name: "Química Orgánica",
-      category: "Química",
-      professor: "Dr. Carlos Méndez",
-      imageUrl:
-        "https://lh3.googleusercontent.com/aida-public/AB6AXuBPdO8EUPwyes0jsoTFnU9pPhn3vnkrZrgzZt21hkSmar32xOGgGCbvuAe4oBV3OtG88JWTJlmyIlst3dk9Y-Yvi9W47BuknjiP7kOedS_MA4WjGAfQxGT_Z600UEgBO2EdVVtnCIZCwC1VtaAyYZHogq-EM-wuhuixcqSo0x01Q3x5xAaDdw_QsI_Q-tsck1wTwk69qHRoASciuz7F-dXRfnaFLqU2b3B_HWJs5mfrJmmTqE6Df94CFdTQsfp4znZA5rWx3Jb3E0o",
-      videosCount: 15,
-      studentsCount: 42,
-    },
-  ];
+  const [classes, setClasses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const handleJoinClass = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchClasses();
+  }, []);
+
+  const fetchClasses = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/classes/');
+      setClasses(res.data);
+    } catch (err) {
+      console.error("Error fetching classes:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleJoinClass = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implementar lógica para unirse a clase
-    console.log("Unirse a clase con código:", accessCode);
-    setIsJoinModalOpen(false);
-    setAccessCode("");
+    setError("");
+    try {
+      await api.post('/classes/join', { code: accessCode });
+      setIsJoinModalOpen(false);
+      setAccessCode("");
+      // Recargar clases
+      fetchClasses();
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || "Error al unirse a la clase";
+      setError(msg);
+    }
   };
 
   return (
@@ -56,11 +51,6 @@ export default function MisClasesPage() {
       <Header
         title="Mis Clases"
         subtitle="Selecciona una clase para ver sus videos"
-        user={{
-          name: "Sofía",
-          email: "sofia@estudiante.com",
-          role: "Estudiante",
-        }}
       />
       <div className="p-6 md:p-8 max-w-7xl mx-auto w-full flex flex-col gap-8">
         {/* Header Actions */}
@@ -82,60 +72,66 @@ export default function MisClasesPage() {
 
         {/* Classes Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mockClasses.map((classItem) => (
-            <Link
-              key={classItem.id}
-              href={`/estudiante/clases/${classItem.id}/videos`}
-              className="flex flex-col bg-white rounded-xl border border-[#e5e7eb] shadow-sm overflow-hidden hover:shadow-md transition-shadow group cursor-pointer"
-            >
-              <div className="relative h-40 w-full bg-gray-200">
-                {classItem.imageUrl && (
-                  <Image
-                    src={classItem.imageUrl}
-                    alt={classItem.name}
-                    fill
-                    className="object-cover"
-                    unoptimized
-                  />
-                )}
-              </div>
-              <div className="p-5 flex flex-col gap-3 flex-1">
-                <div className="flex flex-col gap-1">
-                  <p
-                    className={`text-xs font-bold uppercase tracking-wide ${
-                      classItem.category === "Matemáticas"
-                        ? "text-primary"
-                        : classItem.category === "Historia"
-                        ? "text-purple-500"
-                        : "text-green-500"
-                    }`}
-                  >
-                    {classItem.category}
+          {loading ? (
+            <div className="col-span-3 text-center py-10 text-gray-500">Cargando clases...</div>
+          ) : classes.length === 0 ? (
+            <div className="col-span-3 text-center py-10 text-gray-500 border border-dashed rounded-xl">
+              No estás inscrito en ninguna clase aún. Usa el botón "Unirse a Clase" para agregar una.
+            </div>
+          ) : (
+            classes.map((classItem) => (
+              <Link
+                key={classItem.id}
+                href={`/estudiante/clases/${classItem.id}/videos`}
+                className="flex flex-col bg-white rounded-xl border border-[#e5e7eb] shadow-sm overflow-hidden hover:shadow-md transition-shadow group cursor-pointer h-full"
+              >
+                {/* Header con Imagen/Gradiente */}
+                <div className="relative h-32 w-full bg-cover bg-center" style={{
+                  backgroundImage: classItem.imageUrl ? `url(${classItem.imageUrl})` : 'linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%)'
+                }}>
+                  {!classItem.imageUrl && (
+                    <div className="absolute inset-0 flex items-center justify-center opacity-40">
+                      <span className="material-symbols-outlined text-[60px] text-[#6366f1]">school</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-3 flex flex-col gap-1 flex-1">
+                  {/* Materia / Codigo */}
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#6366f1]">
+                    {classItem.code || "ASIGNATURA"}
                   </p>
-                  <h3 className="text-lg font-bold text-[#111318] group-hover:text-primary transition-colors">
+
+                  {/* Nombre Clase */}
+                  <h3 className="text-base font-bold text-[#111318] group-hover:text-primary transition-colors leading-tight mb-2">
                     {classItem.name}
                   </h3>
-                  <p className="text-sm text-[#616f89]">
-                    {classItem.professor}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4 mt-auto pt-2 text-sm text-[#616f89]">
-                  <div className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[18px]">
-                      video_library
+
+                  {/* Footer: Badge + Video Count */}
+                  <div className="mt-auto pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
+                    {/* Estado */}
+                    <div>
+                      {classItem.has_pending_videos ? (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold bg-[#fff7ed] text-[#c2410c]">
+                          <span className="material-symbols-outlined text-[14px] filled">play_circle</span>
+                          Con videos pendientes
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold bg-[#f3f4f6] text-[#4b5563]">
+                          <span className="material-symbols-outlined text-[14px] filled">check_circle</span>
+                          Sin videos pendientes
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Contador videos (Solo texto) */}
+                    <span className="text-[10px] font-bold text-gray-500 whitespace-nowrap">
+                      {classItem.videos_count || 0} videos
                     </span>
-                    <span>{classItem.videosCount} Videos</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[18px]">
-                      group
-                    </span>
-                    <span>{classItem.studentsCount} Estudiantes</span>
                   </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            )))}
         </div>
       </div>
 
@@ -169,8 +165,9 @@ export default function MisClasesPage() {
                   placeholder="Ingresa el código de acceso"
                   className="w-full rounded-lg border border-[#dbdfe6] bg-white text-[#111318] h-12 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-center text-2xl font-bold tracking-widest uppercase"
                   required
-                  maxLength={6}
+                  maxLength={20}
                 />
+                {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
                 <p className="text-xs text-[#616f89]">
                   Solicita el código de acceso a tu profesor
                 </p>
