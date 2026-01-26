@@ -28,13 +28,18 @@ export default function EstudianteSidebar() {
   const navItems = [
     {
       href: "/estudiante",
-      icon: "dashboard",
-      label: "Dashboard",
+      icon: "home",
+      label: "Inicio",
     },
     {
       href: "/estudiante/clases",
       icon: "group_add",
       label: "Mis Clases",
+    },
+    {
+      href: "/estudiante/resultados",
+      icon: "analytics",
+      label: "Resultados",
     },
   ];
 
@@ -67,16 +72,15 @@ export default function EstudianteSidebar() {
               item.href === "/estudiante"
                 ? pathname === "/estudiante"
                 : pathname === item.href ||
-                  pathname.startsWith(item.href + "/");
+                pathname.startsWith(item.href + "/");
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group ${
-                  isActive
-                    ? "bg-primary/10 text-primary"
-                    : "text-[#616f89] hover:bg-gray-100 hover:text-[#111318]"
-                }`}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group ${isActive
+                  ? "bg-primary/10 text-primary"
+                  : "text-[#616f89] hover:bg-gray-100 hover:text-[#111318]"
+                  }`}
               >
                 <span className="material-symbols-outlined group-hover:scale-105 transition-transform">
                   {item.icon}

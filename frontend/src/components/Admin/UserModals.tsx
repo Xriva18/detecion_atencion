@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import api from "@/services/api";
 
 interface User {
   id: string;
@@ -10,6 +11,7 @@ interface User {
   status: "Activo" | "Inactivo";
   lastActivity: string;
   classes?: string[];
+  createdAt?: string; // Add optional createdAt for details
 }
 
 export function AddUserModal({
@@ -452,7 +454,37 @@ export function UserDetailsModal({
   onClose: () => void;
   onEdit: () => void;
 }) {
+  const [details, setDetails] = useState<User | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && user) {
+      const fetchDetails = async () => {
+        setLoading(true);
+        try {
+          const res = await api.get(`/users/${user.id}`);
+          if (res.data) {
+            setDetails({ ...user, ...res.data });
+          }
+        } catch (error) {
+          console.error("Error details:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchDetails();
+    } else {
+      setDetails(null);
+    }
+  }, [isOpen, user]);
+
   if (!isOpen || !user) return null;
+
+  const isProfessor = user.role === "Profesor";
+  const isAdmin = user.role === "Admin";
+
+  // Use details if available, otherwise fallback to user prop
+  const displayUser = details || user;
 
   const getRoleBadge = (role: User["role"]) => {
     const styles = {
@@ -500,8 +532,7 @@ export function UserDetailsModal({
     );
   };
 
-  const isProfessor = user.role === "Profesor";
-  const isAdmin = user.role === "Admin";
+
 
   return (
     <div
@@ -524,21 +555,21 @@ export function UserDetailsModal({
           {/* User Info Section */}
           <div className="flex items-start gap-4 pb-6 border-b border-[#e5e7eb]">
             <div className="size-16 rounded-full bg-gray-200 border-2 border-gray-200 flex items-center justify-center text-2xl font-bold text-gray-600">
-              {user.name
+              {displayUser.name
                 .split(" ")
-                .map((n) => n[0])
+                .map((n: string) => n[0])
                 .join("")
                 .toUpperCase()
                 .slice(0, 2)}
             </div>
             <div className="flex-1">
               <h3 className="text-2xl font-bold text-[#111318] mb-1">
-                {user.name}
+                {displayUser.name}
               </h3>
-              <p className="text-[#616f89] mb-2">{user.email}</p>
+              <p className="text-[#616f89] mb-2">{displayUser.email}</p>
               <div className="flex items-center gap-3">
-                {getRoleBadge(user.role)}
-                {getStatusBadge(user.status)}
+                {getRoleBadge(displayUser.role)}
+                {getStatusBadge(displayUser.status)}
               </div>
             </div>
           </div>
@@ -553,17 +584,19 @@ export function UserDetailsModal({
                 {isAdmin
                   ? "Información del Administrador"
                   : isProfessor
-                  ? "Clases Creadas"
-                  : "Clases Inscritas"}
+                    ? "Clases Creadas"
+                    : "Clases Inscritas"}
               </span>
             </h4>
             {isAdmin ? (
               <p className="text-[#616f89]">
                 Este usuario tiene acceso completo al sistema de administración.
               </p>
-            ) : user.classes && user.classes.length > 0 ? (
+            ) : loading ? (
+              <div className="text-center py-4 text-gray-400">Cargando clases...</div>
+            ) : displayUser.classes && displayUser.classes.length > 0 ? (
               <div className="flex flex-col gap-3">
-                {user.classes.map((className, index) => (
+                {displayUser.classes.map((className: string, index: number) => (
                   <div
                     key={index}
                     className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-[#e5e7eb]"
@@ -601,13 +634,13 @@ export function UserDetailsModal({
             <div>
               <p className="text-xs text-[#616f89] mb-1">Fecha de Registro</p>
               <p className="text-sm font-medium text-[#111318]">
-                15 de Enero, 2024
+                {(displayUser as any).createdAt || "No disponible"}
               </p>
             </div>
             <div>
               <p className="text-xs text-[#616f89] mb-1">Última Actividad</p>
               <p className="text-sm font-medium text-[#111318]">
-                {user.lastActivity}
+                {displayUser.lastActivity}
               </p>
             </div>
           </div>
@@ -623,7 +656,6 @@ export function UserDetailsModal({
             <button
               type="button"
               onClick={() => {
-                onClose();
                 onEdit();
               }}
               className="px-5 py-2.5 rounded-lg bg-primary hover:bg-blue-700 text-white font-medium transition-colors"

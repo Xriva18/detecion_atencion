@@ -49,11 +49,11 @@ export default function RegistroPage() {
       // Convertir role de string a número: student = 2, professor = 3
       let roleNumber: number;
       if (role === "student") {
-        roleNumber = 2;
-      } else if (role === "professor") {
         roleNumber = 3;
+      } else if (role === "professor") {
+        roleNumber = 2;
       } else {
-        roleNumber = 2; // Por defecto estudiante
+        roleNumber = 3; // Por defecto estudiante
       }
 
       const response = await register({

@@ -15,6 +15,11 @@ interface User {
 
 interface UserTableProps {
   users: User[];
+  totalItems: number;
+  pageSize: number;
+  currentPage: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
   onViewDetails: (user: User) => void;
   onEdit: (user: User) => void;
   onResetPassword: (user: User) => void;
@@ -23,12 +28,21 @@ interface UserTableProps {
 
 export default function UserTable({
   users,
+  totalItems,
+  pageSize,
+  currentPage,
+  onPageChange,
+  onPageSizeChange,
   onViewDetails,
   onEdit,
   onResetPassword,
   onDelete,
 }: UserTableProps) {
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startRange = (currentPage - 1) * pageSize + 1;
+  const endRange = Math.min(currentPage * pageSize, totalItems);
 
   const toggleSelectAll = () => {
     if (selectedUsers.size === users.length) {
@@ -128,102 +142,109 @@ export default function UserTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-[#e5e7eb]">
-            {users.map((user) => (
-              <tr
-                key={user.id}
-                className="group hover:bg-[#f9fafb] transition-colors"
-              >
-                <td className="py-4 px-6">
-                  <input
-                    className="rounded border-gray-300 text-primary focus:ring-primary"
-                    type="checkbox"
-                    checked={selectedUsers.has(user.id)}
-                    onChange={() => toggleSelectUser(user.id)}
-                  />
-                </td>
-                <td className="py-4 px-6">
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      {user.avatar ? (
-                        <div
-                          className="size-10 rounded-full bg-cover bg-center border border-gray-200"
-                          style={{ backgroundImage: `url(${user.avatar})` }}
-                        ></div>
-                      ) : (
-                        <div className="size-10 rounded-full bg-gray-100 text-gray-500 font-bold flex items-center justify-center border border-gray-200">
-                          {user.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                            .toUpperCase()
-                            .slice(0, 2)}
-                        </div>
-                      )}
-                      <div
-                        className={`absolute bottom-0 right-0 size-3 rounded-full border-2 border-white ${
-                          user.status === "Activo"
-                            ? "bg-green-500"
-                            : "bg-gray-400"
-                        }`}
-                      ></div>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-[#111318]">
-                        {user.name}
-                      </span>
-                      <span className="text-sm text-[#616f89]">
-                        {user.email}
-                      </span>
-                    </div>
-                  </div>
-                </td>
-                <td className="py-4 px-6">{getRoleBadge(user.role)}</td>
-                <td className="py-4 px-6">{getStatusBadge(user.status)}</td>
-                <td className="py-4 px-6 text-sm text-[#111318]">
-                  {user.lastActivity}
-                </td>
-                <td className="py-4 px-6 text-right">
-                  <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      className="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-green-600 hover:bg-green-50 transition-colors"
-                      title="Ver Detalles"
-                      onClick={() => onViewDetails(user)}
-                    >
-                      <span className="material-symbols-outlined text-[20px]">
-                        visibility
-                      </span>
-                    </button>
-                    <button
-                      className="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-primary hover:bg-blue-50 transition-colors"
-                      title="Ver/Editar"
-                      onClick={() => onEdit(user)}
-                    >
-                      <span className="material-symbols-outlined text-[20px]">
-                        edit
-                      </span>
-                    </button>
-                    <button
-                      className="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-orange-600 hover:bg-orange-50 transition-colors"
-                      title="Restablecer Contraseña"
-                      onClick={() => onResetPassword(user)}
-                    >
-                      <span className="material-symbols-outlined text-[20px]">
-                        lock_reset
-                      </span>
-                    </button>
-                    <button
-                      className="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-red-600 hover:bg-red-50 transition-colors"
-                      title="Eliminar"
-                      onClick={() => onDelete(user)}
-                    >
-                      <span className="material-symbols-outlined text-[20px]">
-                        delete
-                      </span>
-                    </button>
-                  </div>
+            {users.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="py-12 text-center text-[#616f89]">
+                  No se encontraron usuarios.
                 </td>
               </tr>
-            ))}
+            ) : (
+              users.map((user) => (
+                <tr
+                  key={user.id}
+                  className="group hover:bg-[#f9fafb] transition-colors"
+                >
+                  <td className="py-4 px-6">
+                    <input
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
+                      type="checkbox"
+                      checked={selectedUsers.has(user.id)}
+                      onChange={() => toggleSelectUser(user.id)}
+                    />
+                  </td>
+                  <td className="py-4 px-6">
+                    <div className="flex items-center gap-4">
+                      <div className="relative">
+                        {user.avatar ? (
+                          <div
+                            className="size-10 rounded-full bg-cover bg-center border border-gray-200"
+                            style={{ backgroundImage: `url(${user.avatar})` }}
+                          ></div>
+                        ) : (
+                          <div className="size-10 rounded-full bg-gray-100 text-gray-500 font-bold flex items-center justify-center border border-gray-200">
+                            {user.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .toUpperCase()
+                              .slice(0, 2)}
+                          </div>
+                        )}
+                        <div
+                          className={`absolute bottom-0 right-0 size-3 rounded-full border-2 border-white ${user.status === "Activo"
+                              ? "bg-green-500"
+                              : "bg-gray-400"
+                            }`}
+                        ></div>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold text-[#111318]">
+                          {user.name}
+                        </span>
+                        <span className="text-sm text-[#616f89]">
+                          {user.email}
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6">{getRoleBadge(user.role)}</td>
+                  <td className="py-4 px-6">{getStatusBadge(user.status)}</td>
+                  <td className="py-4 px-6 text-sm text-[#111318]">
+                    {user.lastActivity}
+                  </td>
+                  <td className="py-4 px-6 text-right">
+                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        className="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-green-600 hover:bg-green-50 transition-colors"
+                        title="Ver Detalles"
+                        onClick={() => onViewDetails(user)}
+                      >
+                        <span className="material-symbols-outlined text-[20px]">
+                          visibility
+                        </span>
+                      </button>
+                      <button
+                        className="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-primary hover:bg-blue-50 transition-colors"
+                        title="Ver/Editar"
+                        onClick={() => onEdit(user)}
+                      >
+                        <span className="material-symbols-outlined text-[20px]">
+                          edit
+                        </span>
+                      </button>
+                      <button
+                        className="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-orange-600 hover:bg-orange-50 transition-colors"
+                        title="Restablecer Contraseña"
+                        onClick={() => onResetPassword(user)}
+                      >
+                        <span className="material-symbols-outlined text-[20px]">
+                          lock_reset
+                        </span>
+                      </button>
+                      <button
+                        className="size-8 flex items-center justify-center rounded-lg text-[#616f89] hover:text-red-600 hover:bg-red-50 transition-colors"
+                        title="Eliminar"
+                        onClick={() => onDelete(user)}
+                      >
+                        <span className="material-symbols-outlined text-[20px]">
+                          delete
+                        </span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -231,43 +252,70 @@ export default function UserTable({
       <div className="border-t border-[#e5e7eb] p-4 bg-white flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-2 text-sm text-[#616f89]">
           <span>Mostrar</span>
-          <select className="h-8 rounded border-gray-300 bg-transparent text-[#111318] text-sm focus:border-primary focus:ring-primary">
-            <option>10</option>
-            <option>20</option>
-            <option>50</option>
+          <select
+            className="h-8 rounded border-gray-300 bg-transparent text-[#111318] text-sm focus:border-primary focus:ring-primary"
+            value={pageSize}
+            onChange={(e) => onPageSizeChange(Number(e.target.value))}
+          >
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
           </select>
           <span>filas por página</span>
         </div>
         <div className="flex items-center gap-4">
           <span className="text-sm text-[#616f89]">
             Mostrando
-            <span className="font-bold text-[#111318]"> 1-5 </span>
+            <span className="font-bold text-[#111318]">
+              {" "}
+              {totalItems === 0 ? 0 : startRange}-{endRange}{" "}
+            </span>
             de
-            <span className="font-bold text-[#111318]"> {users.length} </span>
+            <span className="font-bold text-[#111318]"> {totalItems} </span>
           </span>
           <div className="flex items-center gap-1">
             <button
               className="size-8 flex items-center justify-center rounded hover:bg-gray-100 text-[#616f89] disabled:opacity-50"
-              disabled
+              onClick={() => onPageChange(currentPage - 1)}
+              disabled={currentPage === 1}
             >
               <span className="material-symbols-outlined text-[20px]">
                 chevron_left
               </span>
             </button>
-            <button className="size-8 flex items-center justify-center rounded bg-primary text-white text-sm font-bold">
-              1
-            </button>
-            <button className="size-8 flex items-center justify-center rounded hover:bg-gray-100 text-[#616f89] text-sm font-medium">
-              2
-            </button>
-            <button className="size-8 flex items-center justify-center rounded hover:bg-gray-100 text-[#616f89] text-sm font-medium">
-              3
-            </button>
-            <span className="px-1 text-[#616f89]">...</span>
-            <button className="size-8 flex items-center justify-center rounded hover:bg-gray-100 text-[#616f89] text-sm font-medium">
-              10
-            </button>
-            <button className="size-8 flex items-center justify-center rounded hover:bg-gray-100 text-[#616f89]">
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((page) => {
+                // Show current, first, last, and neighbors
+                return (
+                  page === 1 ||
+                  page === totalPages ||
+                  (page >= currentPage - 1 && page <= currentPage + 1)
+                );
+              })
+              .map((page, index, array) => (
+                <div key={page} className="flex items-center">
+                  {index > 0 && array[index - 1] !== page - 1 && (
+                    <span className="px-1 text-[#616f89]">...</span>
+                  )}
+                  <button
+                    onClick={() => onPageChange(page)}
+                    className={`size-8 flex items-center justify-center rounded text-sm font-bold transition-colors ${currentPage === page
+                        ? "bg-primary text-white"
+                        : "hover:bg-gray-100 text-[#616f89]"
+                      }`}
+                  >
+                    {page}
+                  </button>
+                </div>
+              ))}
+
+            <button
+              className="size-8 flex items-center justify-center rounded hover:bg-gray-100 text-[#616f89] disabled:opacity-50"
+              onClick={() => onPageChange(currentPage + 1)}
+              disabled={currentPage === totalPages || totalPages === 0}
+            >
               <span className="material-symbols-outlined text-[20px]">
                 chevron_right
               </span>

@@ -48,6 +48,10 @@ export default function LoginPage() {
           errorMessage = "Email no confirmado";
           errorDetail =
             "Por favor, verifica tu correo electrónico antes de iniciar sesión";
+        } else if (error.message.includes("User is banned")) {
+          // Custom message for banned/deleted users
+          errorMessage = "Su usuario ha sido eliminado. Comuniquese con el administrador.";
+          errorDetail = "Acceso denegado permanentemente.";
         }
 
         setError(errorMessage);
@@ -61,6 +65,34 @@ export default function LoginPage() {
       // Si hay sesión: comprobar si se requiere MFA (getAuthenticatorAssuranceLevel)
       // Con MFA activo, signInWithPassword devuelve sesión AAL1; nextLevel aal2 => redirigir a /twoauth
       if (data.session) {
+        // Verificar estado lógico del usuario antes de proceder
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("ctr_estado, is_active")
+          .eq("user_id", data.user.id)
+          .single();
+
+        if (profileData) {
+          let errorMsg = "";
+
+          if (profileData.ctr_estado === 0) {
+            errorMsg = "Su usuario ha sido eliminado. Comuniquese con el administrador.";
+          } else if (profileData.is_active === false) {
+            errorMsg = "Su usuario se encuentra inactivo. Comuniquese con el administrador.";
+          }
+
+          if (errorMsg) {
+            await supabase.auth.signOut();
+            setError(errorMsg);
+            setAlertMessage(errorMsg);
+            setAlertDetail("Acceso denegado.");
+            setAlertType("error");
+            setIsAlertOpen(true);
+            setIsLoading(false);
+            return;
+          }
+        }
+
         const { data: aalData, error: aalError } =
           await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 

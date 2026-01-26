@@ -1,10 +1,11 @@
 """
 Endpoints para gestión de Sesiones de Actividad (Monitoreo de Atención).
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 from core.config import settings
+from core.deps import get_current_user, get_current_user_token
 from services.ai_service import ai_service
 from supabase import create_client, Client
 from datetime import datetime
@@ -30,7 +31,7 @@ class QuizAnswer(BaseModel):
 
 
 @router.post("/start")
-async def start_session(data: SessionStart):
+async def start_session(data: SessionStart, current_user: any = Depends(get_current_user)):
     """
     Inicia una sesión de estudio cuando el estudiante empieza a ver un video.
     """
@@ -39,7 +40,7 @@ async def start_session(data: SessionStart):
         # No lo incluimos al iniciar porque aún no se ha calculado
         session_data = {
             "task_id": data.task_id,
-            "student_id": data.student_id,
+            "student_id": current_user.id, # Aseguramos que sea el usuario autenticado
             "status": "started"
         }
         response = supabase.table("activity_sessions").insert(session_data).execute()
@@ -152,11 +153,12 @@ async def end_session(data: SessionEnd):
 async def get_quiz(quiz_id: str):
     """
     Obtiene el contenido de un cuestionario generado.
+    Incluye respuestas del estudiante, puntuación y datos de la sesión (atención, tiempos).
     """
     try:
         print(f"Fetching quiz with ID: {quiz_id}")
         response = supabase.table("generated_quizzes") \
-            .select("id, content, session_id, created_at") \
+            .select("*, activity_sessions(attention_level, started_at, completed_at, tasks(title, description, class_id))") \
             .eq("id", quiz_id) \
             .single() \
             .execute()
@@ -212,6 +214,114 @@ async def submit_quiz(data: QuizAnswer):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/student/class/{class_id}")
+async def get_student_class_results(
+    class_id: str, 
+    current_user: any = Depends(get_current_user),
+    token: str = Depends(get_current_user_token)
+):
+    """
+    Obtiene los resultados de evaluaciones de un estudiante para una clase específica.
+    Devuelve TODOS los videos de la clase, con su estado de evaluación correspondiente si existe.
+    """
+    try:
+        # Crear cliente con contexto de usuario para respetar RLS
+        # Instanciamos uno nuevo para no afectar al global
+        auth_client = create_client(settings.supabase_url, settings.supabase_key)
+        auth_client.postgrest.auth(token)
+
+        # 1. Obtener todas las tareas (videos) de la clase
+        # Usamos cliente global (con permisos de lectura generales o service role) para asegurar que las tareas se listen
+        tasks_res = supabase.table("tasks") \
+            .select("id, title, duration_seconds") \
+            .eq("class_id", class_id) \
+            .eq("ctr_estado", 1) \
+            .eq("is_active", True) \
+            .execute()
+        tasks = tasks_res.data or []
+
+        if not tasks:
+            return []
+
+        # 2. Obtener sesiones iniciadas por el alumno en estas tareas
+        task_ids = [t['id'] for t in tasks]
+        
+        # Consultamos sessions usando auth_client para respetar RLS (solo mis sesiones)
+        # Nota: quitamos generated_quizzes del select para evitar bloqueo por RLS en el join
+        sessions_res = auth_client.table("activity_sessions") \
+            .select("id, task_id, status, started_at") \
+            .eq("student_id", current_user.id) \
+            .in_("task_id", task_ids) \
+            .order("started_at", desc=True) \
+            .execute()
+            
+        sessions_data = sessions_res.data or []
+        
+        # 3. Enriquecer con Quizzes usando cliente global (bypass RLS de quizzes si es necesario)
+        session_ids = [s['id'] for s in sessions_data]
+        
+        quizzes_map = {}
+        
+        if session_ids:
+            quizzes_res = supabase.table("generated_quizzes") \
+                .select("id, session_id, score_obtained, completed_at, created_at") \
+                .in_("session_id", session_ids) \
+                .execute()
+            
+            quizzes_data = quizzes_res.data or []
+
+            for q in quizzes_data:
+                # Guardamos lista de quizzes por session_id (aunque suele ser 1 a 1 o 1 a muchos)
+                if q['session_id'] not in quizzes_map:
+                    quizzes_map[q['session_id']] = []
+                quizzes_map[q['session_id']].append(q)
+
+        # Agrupar sesiones por task_id y adjuntar quizzes
+        sessions_by_task = {}
+        for s in sessions_data:
+            qz_list = quizzes_map.get(s['id'], [])
+            s['generated_quizzes'] = qz_list
+            
+            tid = s['task_id']
+            if tid not in sessions_by_task:
+                sessions_by_task[tid] = []
+            sessions_by_task[tid].append(s)
+
+        # 4. Construir respuesta combinada
+        results = []
+        for task in tasks:
+            task_sessions = sessions_by_task.get(task['id'], [])
+            
+            # Buscar la sesión "mejor" o más relevante
+            selected_session = None
+            
+            for s in task_sessions:
+                if s.get('generated_quizzes') and len(s['generated_quizzes']) > 0:
+                    selected_session = s
+                    break
+            
+            if not selected_session and task_sessions:
+                selected_session = task_sessions[0]
+
+            result_item = {
+                "id": selected_session['id'] if selected_session else f"temp-{task['id']}", 
+                "task_id": task['id'],
+                "tasks": {
+                    "title": task['title'],
+                    "duration_seconds": task.get('duration_seconds', 0)
+                }, 
+                "status": selected_session['status'] if selected_session else "pending",
+                "generated_quizzes": selected_session['generated_quizzes'] if selected_session else []
+            }
+            results.append(result_item)
+            
+        return results
+
+    except Exception as e:
+        print(f"Error getting student class results: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/student/{student_id}/history")
 async def get_student_history(student_id: str):
     """
@@ -219,10 +329,22 @@ async def get_student_history(student_id: str):
     Útil para el dashboard del estudiante.
     """
     try:
+        # 1. Obtener clases activas del estudiante (estado=1)
+        enrollments = supabase.table("class_enrollments").select("class_id").eq("student_id", student_id).eq("estado", 1).execute()
+        valid_class_ids = [e['class_id'] for e in enrollments.data]
+        
+        if not valid_class_ids:
+            return []
+
+        # 2. Obtener historial filtrando por esas clases
         response = supabase.table("activity_sessions") \
-            .select("*, tasks(title, video_url), generated_quizzes(score_obtained)") \
+            .select("*, tasks!inner(title, video_url, class_id, classes!inner(name, ctr_esatdo, is_active)), generated_quizzes(quiz_id:id, score_obtained)") \
             .eq("student_id", student_id) \
+            .in_("tasks.class_id", valid_class_ids) \
+            .eq("tasks.classes.ctr_esatdo", 1) \
+            .eq("tasks.classes.is_active", True) \
             .order("started_at", desc=True) \
+            .limit(5) \
             .execute()
         return response.data
     except Exception as e:

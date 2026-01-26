@@ -42,6 +42,8 @@ interface Student {
 
 interface StudentVideoResult {
   studentId: string;
+  studentName?: string;
+  studentEmail?: string;
   videoId: string;
   score: number;
   correctAnswers: number;
@@ -241,6 +243,7 @@ export default function GestiónClasesPage() {
 
   // Student Modals
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [realVideoResults, setRealVideoResults] = useState<StudentVideoResult[]>([]);
   const [isViewStudentModalOpen, setIsViewStudentModalOpen] = useState(false);
   const [isDeleteStudentModalOpen, setIsDeleteStudentModalOpen] = useState(false);
 
@@ -248,11 +251,82 @@ export default function GestiónClasesPage() {
     fetchClasses();
   }, []);
 
+  // Fetch de videos cuando se selecciona una clase
+  useEffect(() => {
+    if (selectedClass && viewMode === "detail") {
+      fetchVideos(selectedClass.id);
+      fetchStudents(selectedClass.id);
+    }
+  }, [selectedClass, viewMode]);
+
+  const [classVideos, setClassVideos] = useState<Video[]>([]);
+  const [classStudentsList, setClassStudentsList] = useState<Student[]>([]);
+
+  const fetchStudents = async (classId: string) => {
+    try {
+      const res = await api.get(`/classes/${classId}/students`);
+      if (res.data) {
+        const mappedStudents: Student[] = res.data.map((item: any) => ({
+          id: item.student_id,
+          name: item.profiles?.full_name || "Sin nombre",
+          email: item.profiles?.email || "Sin email",
+          classId: classId
+        }));
+        setClassStudentsList(mappedStudents);
+      }
+    } catch (error) {
+      console.error("Error fetching students:", error);
+      setClassStudentsList([]);
+    }
+  };
+
+  const fetchVideos = async (classId: string) => {
+    try {
+      const res = await api.get(`/tasks/class/${classId}`);
+      if (res.data) {
+        // Mapear respuesta del backend al formato Video del frontend
+        const mappedVideos: Video[] = res.data.map((task: any) => ({
+          id: task.id,
+          title: task.title,
+          description: task.description || "",
+          // Formatear duración (si viene en segundos o string)
+          duration: task.duration_seconds ? formatDuration(task.duration_seconds) : "00:00",
+          uploadDate: task.created_at || new Date().toISOString(),
+          classId: task.class_id
+        }));
+        setClassVideos(mappedVideos);
+      }
+    } catch (error) {
+      console.error("Error fetching videos:", error);
+      setClassVideos([]);
+    }
+  };
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const fetchClasses = async () => {
     try {
       setLoading(true);
       const res = await api.get('/classes/');
-      setClasses((res.data ?? []) as Class[]);
+      if (res.data) {
+        // Mapear respuesta del backend al formato del frontend
+        const mappedClasses: Class[] = res.data.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          description: item.description,
+          status: item.is_active ? "Activo" : "Archivado",
+          students: item.students_count || 0, // Mapeo count
+          videos: item.videos_count || 0, // Mapeo count
+          accessCode: item.code,
+          imageUrl: item.image_url,
+          schedule: item.schedule
+        }));
+        setClasses(mappedClasses);
+      }
     } catch (error) {
       console.error("Failed to fetch classes", error);
     } finally {
@@ -300,32 +374,55 @@ export default function GestiónClasesPage() {
     setIsCreateModalOpen(false);
   };
 
-  const handleEditClass = (classData: Class) => {
-    setClasses(
-      classes.map((c) => (c.id === classData.id ? classData : c))
-    );
-    setIsEditModalOpen(false);
-    setSelectedClass(null);
-  };
+  const handleEditClass = async (classData: Class) => {
+    try {
+      await api.put(`/classes/${classData.id}`, {
+        name: classData.name,
+        description: classData.description,
+        schedule: classData.schedule,
+        is_active: classData.status === "Activo",
+      });
 
-  const handleDeleteClass = () => {
-    if (selectedClass) {
-      setClasses(classes.filter((c) => c.id !== selectedClass.id));
-      setIsDeleteModalOpen(false);
+      // Actualizar estado local
+      setClasses(
+        classes.map((c) => (c.id === classData.id ? classData : c))
+      );
+      setIsEditModalOpen(false);
       setSelectedClass(null);
+    } catch (error) {
+      console.error("Error updating class:", error);
+      alert("Error al actualizar la clase");
     }
   };
 
-  const handleGenerateCode = (classId: string) => {
-    const newCode =
-      Math.random().toString(36).substring(2, 5).toUpperCase() +
-      Math.floor(Math.random() * 1000);
-    const updated = classes.map((c) =>
-      c.id === classId ? { ...c, accessCode: newCode } : c
-    );
-    setClasses(updated);
-    if (selectedClass?.id === classId) {
+  const handleDeleteClass = async () => {
+    if (selectedClass) {
+      try {
+        await api.delete(`/classes/${selectedClass.id}`);
+        setClasses(classes.filter((c) => c.id !== selectedClass.id));
+        setIsDeleteModalOpen(false);
+        setSelectedClass(null);
+      } catch (error) {
+        console.error("Error deleting class:", error);
+        alert("Error al eliminar la clase");
+      }
+    }
+  };
+
+  const handleSaveCode = async (newCode: string) => {
+    if (!selectedClass) return;
+    try {
+      await api.put(`/classes/${selectedClass.id}`, { code: newCode });
+
+      // Actualizar estado local
+      const updated = classes.map((c) =>
+        c.id === selectedClass.id ? { ...c, accessCode: newCode } : c
+      );
+      setClasses(updated);
       setSelectedClass({ ...selectedClass, accessCode: newCode });
+    } catch (error) {
+      console.error("Error updating class code:", error);
+      alert("Error al guardar el código");
     }
   };
 
@@ -337,9 +434,20 @@ export default function GestiónClasesPage() {
     setSelectedVideo(null);
   };
 
-  const handleVideoClick = (video: Video) => {
+  const handleVideoClick = async (video: Video) => {
     setSelectedVideo(video);
     setViewMode("videoResults");
+
+    // Fetch real results
+    try {
+      const res = await api.get(`/stats/tasks/${video.id}/results`);
+      if (res.data) {
+        setRealVideoResults(res.data);
+      }
+    } catch (error) {
+      console.error("Error fetching video results", error);
+      setRealVideoResults([]);
+    }
   };
 
   const handleBackToList = () => {
@@ -354,11 +462,19 @@ export default function GestiónClasesPage() {
   };
 
   const getClassVideos = (classId: string) => {
-    return mockVideos.filter((v) => v.classId === classId);
+    // Retornamos los videos del estado que ya se cargaron para la clase seleccionada
+    // Si estamos viendo una clase distinta a la que cargamos, retornamos vacio por seguridad
+    if (selectedClass && selectedClass.id === classId) {
+      return classVideos;
+    }
+    return [];
   };
 
   const getClassStudents = (classId: string) => {
-    return students.filter((s) => s.classId === classId);
+    if (selectedClass && selectedClass.id === classId) {
+      return classStudentsList;
+    }
+    return [];
   };
 
   const getVideoResults = (videoId: string) => {
@@ -378,25 +494,37 @@ export default function GestiónClasesPage() {
     setIsViewStudentModalOpen(true);
   };
 
-  const handleDeleteStudent = () => {
+  const handleDeleteStudent = async () => {
     if (selectedStudent && selectedClass) {
-      // En producción, esto sería una llamada a la API
-      // Por ahora, solo actualizamos el estado local
-      setStudents(
-        students.filter(
-          (s) => !(s.id === selectedStudent.id && s.classId === selectedClass.id)
-        )
-      );
-      // Actualizar el contador de estudiantes en la clase
-      setClasses(
-        classes.map((c) =>
-          c.id === selectedClass.id
-            ? { ...c, students: Math.max(0, c.students - 1) }
-            : c
-        )
-      );
-      setIsDeleteStudentModalOpen(false);
-      setSelectedStudent(null);
+      try {
+        await api.delete(`/classes/${selectedClass.id}/students/${selectedStudent.id}`);
+
+        // Actualizar lista de estudiantes
+        setClassStudentsList(
+          classStudentsList.filter((s) => s.id !== selectedStudent.id)
+        );
+
+        // Actualizar el contador de estudiantes en la clase
+        setClasses(
+          classes.map((c) =>
+            c.id === selectedClass.id
+              ? { ...c, students: Math.max(0, c.students - 1) }
+              : c
+          )
+        );
+
+        // Actualizar también la clase seleccionada para reflejar el cambio inmediato en contador si se muestra
+        setSelectedClass({
+          ...selectedClass,
+          students: Math.max(0, selectedClass.students - 1)
+        });
+
+        setIsDeleteStudentModalOpen(false);
+        setSelectedStudent(null);
+      } catch (error) {
+        console.error("Error removing student:", error);
+        alert("Error al eliminar el estudiante");
+      }
     }
   };
 
@@ -404,7 +532,8 @@ export default function GestiónClasesPage() {
     return mockStudentVideoResults
       .filter((r) => r.studentId === studentId)
       .map((result) => {
-        const video = mockVideos.find((v) => v.id === result.videoId);
+        // Buscar en classVideos en lugar de mockVideos
+        const video = classVideos.find((v) => v.id === result.videoId) || mockVideos.find((v) => v.id === result.videoId);
         return {
           ...result,
           videoTitle: video?.title || "Video desconocido",
@@ -414,7 +543,7 @@ export default function GestiónClasesPage() {
 
   // Vista de resultados de estudiantes por video
   if (viewMode === "videoResults" && selectedVideo && selectedClass) {
-    const videoResults = getVideoResults(selectedVideo.id);
+    const videoResults = realVideoResults;
 
     return (
       <>
@@ -546,8 +675,8 @@ export default function GestiónClasesPage() {
 
   // Vista de detalle de clase con tabs
   if (viewMode === "detail" && selectedClass) {
-    const classVideos = getClassVideos(selectedClass.id);
-    const classStudents = getClassStudents(selectedClass.id);
+    // Usamos el estado directo para classVideos (ya definido arriba)
+    const classStudents = classStudentsList;
 
     return (
       <>
@@ -759,72 +888,7 @@ export default function GestiónClasesPage() {
                   </div>
                 </div>
 
-                <div className="border-t border-[#e5e7eb] pt-6">
-                  <h3 className="text-lg font-semibold text-[#111318] mb-4">
-                    Resultados por Video
-                  </h3>
-                  {getStudentVideoResults(selectedStudent.id).length > 0 ? (
-                    <div className="space-y-4">
-                      {getStudentVideoResults(selectedStudent.id).map(
-                        (result, index) => (
-                          <div
-                            key={index}
-                            className="bg-gray-50 rounded-lg p-4 border border-[#e5e7eb]"
-                          >
-                            <h4 className="font-medium text-[#111318] mb-3">
-                              {result.videoTitle}
-                            </h4>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                              <div>
-                                <label className="text-xs text-[#616f89]">
-                                  Nota
-                                </label>
-                                <p
-                                  className={`text-lg font-semibold ${result.score >= 80
-                                    ? "text-green-700"
-                                    : result.score >= 60
-                                      ? "text-yellow-700"
-                                      : "text-red-700"
-                                    }`}
-                                >
-                                  {result.score}%
-                                </p>
-                              </div>
-                              <div>
-                                <label className="text-xs text-[#616f89]">
-                                  Correctas
-                                </label>
-                                <p className="text-lg font-semibold text-[#111318]">
-                                  {result.correctAnswers}
-                                </p>
-                              </div>
-                              <div>
-                                <label className="text-xs text-[#616f89]">
-                                  Fallidas
-                                </label>
-                                <p className="text-lg font-semibold text-[#111318]">
-                                  {result.incorrectAnswers}
-                                </p>
-                              </div>
-                              <div>
-                                <label className="text-xs text-[#616f89]">
-                                  Total
-                                </label>
-                                <p className="text-lg font-semibold text-[#111318]">
-                                  {result.totalQuestions}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-[#616f89] text-center py-8">
-                      El estudiante no ha completado ningún video aún.
-                    </p>
-                  )}
-                </div>
+
               </div>
               <div className="p-6 border-t border-[#e5e7eb] flex justify-end">
                 <button
@@ -904,125 +968,124 @@ export default function GestiónClasesPage() {
           </div>
         ) : (
           <>
-        {/* Filters */}
-        <div className="flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
-          <div className="w-full md:w-96 relative">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#616f89]">
-              search
-            </span>
-            <input
-              type="text"
-              placeholder="Buscar clases..."
-              className="w-full pl-10 pr-4 h-11 rounded-lg border border-[#dbdfe6] focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-[#111318]"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <button
-            onClick={handleNavToCreate}
-            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition-all shadow-sm shadow-primary/25 whitespace-nowrap"
-          >
-            <span className="material-symbols-outlined">add</span>
-            Crear Nueva Clase
-          </button>
-        </div>
-
-        {/* Grid of Classes */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredClasses.map((classItem) => (
-            <div
-              key={classItem.id}
-              onClick={() => handleClassClick(classItem)}
-              className="group flex flex-col bg-white rounded-xl shadow-sm hover:shadow-md border border-[#e5e7eb] overflow-hidden transition-all duration-300 cursor-pointer"
-            >
-              <div className="relative h-40 bg-gray-200 overflow-hidden">
-                {classItem.imageUrl ? (
-                  <div
-                    className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
-                    style={{ backgroundImage: `url(${classItem.imageUrl})` }}
-                  ></div>
-                ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-purple-200"></div>
-                )}
-                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button className="bg-white/90 text-gray-700 p-1.5 rounded-lg backdrop-blur-sm hover:bg-white">
-                    <span className="material-symbols-outlined text-[20px]">
-                      more_vert
-                    </span>
-                  </button>
-                </div>
+            {/* Filters */}
+            <div className="flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
+              <div className="w-full md:w-96 relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#616f89]">
+                  search
+                </span>
+                <input
+                  type="text"
+                  placeholder="Buscar clases..."
+                  className="w-full pl-10 pr-4 h-11 rounded-lg border border-[#dbdfe6] focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-[#111318]"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
-              <div className="flex flex-col p-5 flex-1">
-                <div className="mb-4">
-                  <h3 className="text-lg font-bold text-[#111318] mb-1 line-clamp-1">
-                    {classItem.name}
-                  </h3>
-                  <p className="text-sm text-[#616f89] line-clamp-2">
-                    {classItem.description}
-                  </p>
-                </div>
-                <div className="flex items-center gap-4 mb-5 text-sm text-[#616f89]">
-                  <div className="flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[18px]">
-                      group
-                    </span>
-                    <span>{classItem.students} Estudiantes</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[18px]">
-                      video_library
-                    </span>
-                    <span>{classItem.videos} Videos</span>
-                  </div>
-                </div>
-                <div className="mt-auto border-t border-[#e5e7eb] pt-4 flex items-center justify-between gap-2">
-                  <div className="flex gap-1">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedClass(classItem);
-                        setIsCodeModalOpen(true);
-                      }}
-                      className="flex items-center justify-center p-2 rounded-lg text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
-                      title="Generar Código"
-                      disabled={classItem.status !== "Activo"}
-                    >
-                      <span className="material-symbols-outlined text-[20px]">
-                        vpn_key
-                      </span>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedClass(classItem);
-                        setIsEditModalOpen(true);
-                      }}
-                      className="flex items-center justify-center p-2 rounded-lg text-[#616f89] hover:bg-gray-100 transition-colors"
-                      title="Editar Clase"
-                    >
-                      <span className="material-symbols-outlined text-[20px]">
-                        edit
-                      </span>
-                    </button>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedClass(classItem);
-                      setIsDeleteModalOpen(true);
-                    }}
-                    className="flex items-center justify-center p-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
-                    title="Eliminar Clase"
-                  >
-                    <span className="material-symbols-outlined text-[20px]">
-                      delete
-                    </span>
-                  </button>
-                </div>
-              </div>
+              <button
+                onClick={handleNavToCreate}
+                className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition-all shadow-sm shadow-primary/25 whitespace-nowrap"
+              >
+                <span className="material-symbols-outlined">add</span>
+                Crear Nueva Clase
+              </button>
             </div>
-          ))}
-        </div>
+
+            {/* Grid of Classes */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredClasses.map((classItem) => (
+                <div
+                  key={classItem.id}
+                  onClick={() => handleClassClick(classItem)}
+                  className="group flex flex-col bg-white rounded-xl shadow-sm hover:shadow-md border border-[#e5e7eb] overflow-hidden transition-all duration-300 cursor-pointer"
+                >
+                  <div className="relative h-40 bg-gray-200 overflow-hidden">
+                    {classItem.imageUrl ? (
+                      <div
+                        className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
+                        style={{ backgroundImage: `url(${classItem.imageUrl})` }}
+                      ></div>
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-purple-200"></div>
+                    )}
+                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button className="bg-white/90 text-gray-700 p-1.5 rounded-lg backdrop-blur-sm hover:bg-white">
+                        <span className="material-symbols-outlined text-[20px]">
+                          more_vert
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex flex-col p-5 flex-1">
+                    <div className="mb-4">
+                      <h3 className="text-lg font-bold text-[#111318] mb-1 line-clamp-1">
+                        {classItem.name}
+                      </h3>
+                      <p className="text-sm text-[#616f89] line-clamp-2">
+                        {classItem.description}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4 mb-5 text-sm text-[#616f89]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[18px]">
+                          group
+                        </span>
+                        <span>{classItem.students} Estudiantes</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[18px]">
+                          video_library
+                        </span>
+                        <span>{classItem.videos} Videos</span>
+                      </div>
+                    </div>
+                    <div className="mt-auto border-t border-[#e5e7eb] pt-4 flex items-center justify-between gap-2">
+                      <div className="flex gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedClass(classItem);
+                            setIsCodeModalOpen(true);
+                          }}
+                          className="flex items-center justify-center p-2 rounded-lg text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
+                          title="Generar Código"
+                        >
+                          <span className="material-symbols-outlined text-[20px]">
+                            vpn_key
+                          </span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedClass(classItem);
+                            setIsEditModalOpen(true);
+                          }}
+                          className="flex items-center justify-center p-2 rounded-lg text-[#616f89] hover:bg-gray-100 transition-colors"
+                          title="Editar Clase"
+                        >
+                          <span className="material-symbols-outlined text-[20px]">
+                            edit
+                          </span>
+                        </button>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedClass(classItem);
+                          setIsDeleteModalOpen(true);
+                        }}
+                        className="flex items-center justify-center p-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                        title="Eliminar Clase"
+                      >
+                        <span className="material-symbols-outlined text-[20px]">
+                          delete
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </>
         )}
       </div>
@@ -1049,11 +1112,7 @@ export default function GestiónClasesPage() {
           setSelectedClass(null);
         }}
         classItem={selectedClass}
-        onGenerateNewCode={() => {
-          if (selectedClass) {
-            handleGenerateCode(selectedClass.id);
-          }
-        }}
+        onSave={handleSaveCode}
       />
       <DeleteClassModal
         isOpen={isDeleteModalOpen}
