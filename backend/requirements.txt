@@ -13,3 +13,5 @@ python-multipart
 aiohttp
 openai-whisper
 PyJWT
+torch>=2.0.0
+torchvision>=0.15.0

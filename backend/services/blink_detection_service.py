@@ -1,91 +1,100 @@
 import cv2
 import mediapipe as mp
 import numpy as np
+import os
+from pathlib import Path
 
 from core.config import settings
 from models.schemas import BlinkDetectionResponse
 
+# Nuevos imports para Tasks API
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
 
 class BlinkDetectionService:
     """
-    Servicio para detectar parpadeos usando MediaPipe Face Mesh y cálculo de EAR.
+    Servicio para detectar parpadeos usando MediaPipe Tasks API (FaceLandmarker).
     """
     
-    # Índices de landmarks de MediaPipe Face Mesh para los ojos
-    # Orden para EAR: [p1, p2, p3, p4, p5, p6]
-    # donde p1=arriba, p2=esq_sup_izq, p3=esq_sup_der, p4=abajo, p5=esq_inf_izq, p6=esq_inf_der
-    # Ojo izquierdo (desde la perspectiva de la persona)
-    # MediaPipe índices: 33 (arriba), 7 (esq_sup_izq), 163 (esq_sup_der), 
-    #                    144 (abajo), 153 (esq_inf_izq), 158 (esq_inf_der)
-    LEFT_EYE_INDICES = [33, 7, 163, 144, 153, 158]
-    # Ojo derecho (desde la perspectiva de la persona)
-    # MediaPipe índices: 362 (arriba), 382 (esq_sup_izq), 381 (esq_sup_der),
-    #                    380 (abajo), 374 (esq_inf_izq), 390 (esq_inf_der)
-    RIGHT_EYE_INDICES = [362, 382, 381, 380, 374, 390]
+    # Índices de landmarks (mismos que antes)
+    # Índices de landmarks estándar para MediaPipe Face Mesh (ordenados para fórmula EAR)
+    # [Corner1, Top1, Top2, Corner2, Bottom2, Bottom1]
+    # EAR = (|Top1-Bottom1| + |Top2-Bottom2|) / (2 * |Corner1-Corner2|)
+    LEFT_EYE_INDICES = [33, 160, 158, 133, 153, 144]
+    RIGHT_EYE_INDICES = [362, 385, 387, 263, 373, 380]
     
     def __init__(self, static_image_mode: bool = True, max_num_faces: int = 1):
         """
-        Inicializa el servicio de detección de parpadeos usando MediaPipe Face Mesh.
-        
-        Args:
-            static_image_mode: Si True, procesa imágenes estáticas. Si False, procesa video.
-            max_num_faces: Número máximo de rostros a detectar
+        Inicializa el servicio usando FaceLandmarker.
         """
-        mp_face_mesh = mp.solutions.face_mesh
-        self.face_mesh = mp_face_mesh.FaceMesh(
-            static_image_mode=static_image_mode,
-            max_num_faces=max_num_faces,
-            refine_landmarks=True,
-            min_detection_confidence=settings.face_mesh_min_detection_confidence,
-            min_tracking_confidence=settings.face_mesh_min_tracking_confidence
+        # Usar ruta absoluta para evitar problemas de CWD
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        models_dir = os.path.join(os.path.dirname(current_dir), "models")
+        model_path = os.path.join(models_dir, "face_landmarker.task")
+        
+        base_options = python.BaseOptions(
+            model_asset_path=model_path
         )
-        self.ear_threshold = settings.ear_threshold
-    
+        
+        # Configurar opciones
+        # Usamos IMAGE mode por defecto ya que processed por request
+        running_mode = vision.RunningMode.IMAGE
+        
+        options = vision.FaceLandmarkerOptions(
+            base_options=base_options,
+            running_mode=running_mode,
+            num_faces=max_num_faces,
+            min_face_detection_confidence=settings.face_mesh_min_detection_confidence,
+            min_face_presence_confidence=settings.face_mesh_min_tracking_confidence,
+            min_tracking_confidence=settings.face_mesh_min_tracking_confidence,
+            output_face_blendshapes=True,
+            output_facial_transformation_matrixes=True
+        )
+        
+        try:
+            self.landmarker = vision.FaceLandmarker.create_from_options(options)
+            self.ear_threshold = settings.ear_threshold
+            print("[BlinkDetection] ✅ FaceLandmarker inicializado correctamente (Tasks API)")
+        except Exception as e:
+            print(f"[BlinkDetection] ❌ Error inicializando FaceLandmarker: {e}")
+            self.landmarker = None
     
     def detect_blink(self, img: np.ndarray) -> BlinkDetectionResponse:
         """
-        Detecta parpadeos en una imagen calculando el EAR para cada ojo.
-        
-        Args:
-            img: Imagen en formato numpy array (OpenCV BGR)
-            
-        Returns:
-            BlinkDetectionResponse con información sobre el parpadeo
+        Detecta parpadeos en una imagen.
         """
+        if self.landmarker is None:
+            return BlinkDetectionResponse(blinking=False, left_ear=0.0, right_ear=0.0)
+
         try:
-            print(f"[BlinkDetection] Procesando imagen...")
-            # Convertir BGR a RGB (MediaPipe usa RGB)
+            # Convertir a mp.Image
             img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img_rgb)
             
-            # Procesar con Face Mesh
-            results = self.face_mesh.process(img_rgb)
+            # Detectar
+            detection_result = self.landmarker.detect(mp_image)
             
-            # Verificar si se detectó algún rostro
-            if not results.multi_face_landmarks or len(results.multi_face_landmarks) == 0:
-                # No se detectó rostro, retornar valores por defecto
-                print("[BlinkDetection] ❌ No se detectaron landmarks faciales")
+            # Verificar rostros
+            if not detection_result.face_landmarks:
                 return BlinkDetectionResponse(
-                    blinking=False,
-                    left_ear=0.0,
-                    right_ear=0.0
+                    blinking=False, left_ear=0.0, right_ear=0.0
                 )
             
-            # Obtener el primer rostro detectado
-            face_landmarks = results.multi_face_landmarks[0]
+            # Obtener landmarks del primer rostro (Lista de listas de NormalizedLandmark)
+            # detection_result.face_landmarks[0] es la lista de landmarks del primer rostro
+            face_landmarks_list = detection_result.face_landmarks[0]
             
-            # Calcular EAR para cada ojo
+            # Calcular EAR
             left_ear = self._calculate_ear_from_landmarks(
-                face_landmarks, self.LEFT_EYE_INDICES, img.shape
+                face_landmarks_list, self.LEFT_EYE_INDICES, img.shape
             )
             right_ear = self._calculate_ear_from_landmarks(
-                face_landmarks, self.RIGHT_EYE_INDICES, img.shape
+                face_landmarks_list, self.RIGHT_EYE_INDICES, img.shape
             )
             
-            # Determinar si hay parpadeo (EAR promedio menor al umbral)
+            # Determinar parpadeo
             avg_ear = (left_ear + right_ear) / 2.0
             blinking = avg_ear < self.ear_threshold
-            
-            print(f"[BlinkDetection] EAR: L={left_ear:.3f} R={right_ear:.3f} | Parpadeando: {blinking}")
             
             return BlinkDetectionResponse(
                 blinking=blinking,
@@ -94,73 +103,53 @@ class BlinkDetectionService:
             )
             
         except Exception as e:
-            # En caso de error, retornar valores por defecto
-            print(f"[BlinkDetection] ⚠️ Error:  {e}")
+            print(f"[BlinkDetection] ⚠️ Error: {e}")
             return BlinkDetectionResponse(
-                blinking=False,
-                left_ear=0.0,
-                right_ear=0.0
+                blinking=False, left_ear=0.0, right_ear=0.0
             )
-    
+
     def _calculate_ear_from_landmarks(
         self, 
-        face_landmarks: any, 
+        face_landmarks_list: list, 
         eye_indices: list, 
         img_shape: tuple
     ) -> float:
         """
-        Calcula EAR desde los landmarks de MediaPipe.
-        
-        EAR = (|p2-p6| + |p3-p5|) / (2 * |p1-p4|)
-        
-        Los índices en eye_indices están ordenados como: [p1, p2, p3, p4, p5, p6]
-        donde:
-        - p1: punto superior del ojo (arriba)
-        - p2: esquina superior izquierda
-        - p3: esquina superior derecha
-        - p4: punto inferior del ojo (abajo)
-        - p5: esquina inferior izquierda
-        - p6: esquina inferior derecha
-        
-        Args:
-            face_landmarks: Objeto de landmarks de MediaPipe
-            eye_indices: Lista de 6 índices de landmarks para el ojo [p1, p2, p3, p4, p5, p6]
-            img_shape: Tupla (height, width) de la imagen
-            
-        Returns:
-            float: Valor EAR calculado
+        Calcula EAR desde la lista de landmarks.
+        Nota: face_landmarks_list es una lista directa de landmarks, no un objeto con .landmark
         """
         h, w = img_shape[:2]
         
-        # Obtener coordenadas de los 6 puntos del ojo
         points = []
         for idx in eye_indices:
-            landmark = face_landmarks.landmark[idx]
-            # MediaPipe retorna coordenadas normalizadas (0-1)
+            # Acceso directo a la lista
+            landmark = face_landmarks_list[idx]
             x = landmark.x * w
             y = landmark.y * h
             points.append(np.array([x, y]))
         
-        # EAR = (|p2-p6| + |p3-p5|) / (2 * |p1-p4|)
-        # p1 = points[0] (arriba)
-        # p2 = points[1] (esquina sup izq)
-        # p3 = points[2] (esquina sup der)
-        # p4 = points[3] (abajo)
-        # p5 = points[4] (esquina inf izq)
-        # p6 = points[5] (esquina inf der)
-        
-        # Distancia vertical: entre p1 (arriba) y p4 (abajo)
+        # Cálculo de distancias (igual que antes)
         vertical_dist = np.linalg.norm(points[0] - points[3])
-        
-        # Distancia horizontal superior: entre p2 y p6
         horizontal_dist_1 = np.linalg.norm(points[1] - points[5])
-        
-        # Distancia horizontal inferior: entre p3 y p5
         horizontal_dist_2 = np.linalg.norm(points[2] - points[4])
         
-        # Calcular EAR
         if vertical_dist == 0:
             return 0.0
         
         ear = (horizontal_dist_1 + horizontal_dist_2) / (2.0 * vertical_dist)
         return float(ear)
+    
+    def get_full_result(self, img: np.ndarray):
+        """
+        Retorna el resultado completo de FaceLandmarker.
+        Útil para otros servicios como HeadPose.
+        """
+        if self.landmarker is None:
+            return None
+            
+        try:
+            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img_rgb)
+            return self.landmarker.detect(mp_image)
+        except Exception:
+            return None

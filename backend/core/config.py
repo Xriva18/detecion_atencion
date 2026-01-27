@@ -19,14 +19,37 @@ class Settings(BaseSettings):
     
     # Configuración de MediaPipe
     face_detection_model_selection: int = 0  # 0 para modelo corto, 1 para modelo completo
-    face_detection_min_confidence: float = 0.8  # Confianza mínima para detectar rostro (0.0-1.0). Mayor valor = menos falsos positivos
+    face_detection_min_confidence: float = 0.5  # Modificado a 0.5 para pruebas (antes 0.8)
     
-    # Configuración de Face Mesh (para detección de parpadeos)
-    face_mesh_min_detection_confidence: float = 0.7  # Confianza mínima para detectar landmarks faciales
-    face_mesh_min_tracking_confidence: float = 0.7  # Confianza mínima para rastrear rostro entre frames
+    # Configuración de Face Mesh (para detección de parpadeos con FaceLandmarker)
+    face_mesh_min_detection_confidence: float = 0.5  # Modificado a 0.5 para pruebas (antes 0.7)
+    face_mesh_min_tracking_confidence: float = 0.5  # Modificado a 0.5 para pruebas (antes 0.7)
     
     # Configuración de detección de parpadeo
-    ear_threshold: float = 1.55  # Umbral EAR para detectar si esta viendo a la pantalla. Valores más altos = más estricto
+    # Configuración de detección de parpadeo
+    ear_threshold: float = 0.25  # Umbral EAR estándar (0.2 - 0.3)
+    ear_distraction_threshold: float = 0.25  # EAR bajo para detectar ojos cerrados/fatiga
+    
+    # Configuración de monitoreo de atención
+    gaze_yaw_threshold: float = 20.0  # Umbral en grados para detectar desvío lateral de mirada
+    pose_yaw_threshold: float = 25.0  # Umbral en grados para detectar giro de cabeza
+    pose_pitch_threshold: float = 15.0  # Umbral en grados para detectar inclinación de cabeza
+    ideal_blink_rate_min: int = 12  # Mínimo ideal de parpadeos por minuto
+    ideal_blink_rate_max: int = 15  # Máximo ideal de parpadeos por minuto
+    l2cs_model_path: str = "models/L2CSNet_gaze360.pkl"  # Ruta al modelo L2CS-Net
+    
+    # Pesos para el Engagement Index (EI = wg*Gaze + wp*Pose + wb*Blink)
+    engagement_weight_gaze: float = 0.5
+    engagement_weight_pose: float = 0.3
+    engagement_weight_blink: float = 0.2
+    
+    @property
+    def engagement_weights(self) -> dict:
+        return {
+            "gaze": self.engagement_weight_gaze,
+            "pose": self.engagement_weight_pose,
+            "blink": self.engagement_weight_blink
+        }
     
     # Configuración de WebSocket
     websocket_check_interval: float = 0.5  # Intervalo en segundos para verificar cambios en WebSocket (blink_count)

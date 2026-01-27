@@ -5,10 +5,23 @@ from core.config import settings
 from core.exceptions import setup_exception_handlers
 from endpoints.routes import register_routes
 
+from contextlib import asynccontextmanager
+from services.gaze_model_loader import GazeModelLoader
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Load model on startup
+    print("[Lifespan] Cargando modelo L2CS-Net...")
+    GazeModelLoader.load_model()
+    yield
+    # Clean up (optional)
+    GazeModelLoader.unload()
+
 # Crear instancia de FastAPI con configuración
 app = FastAPI(
     title=settings.api_title,
-    version=settings.api_version
+    version=settings.api_version,
+    lifespan=lifespan
 )
 
 # Configurar CORS para permitir peticiones desde el frontend

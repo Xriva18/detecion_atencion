@@ -3,7 +3,7 @@ echo Iniciando Backend y Frontend...
 echo.
 
 REM Iniciar Backend con Python 3.11
-start "Backend - FastAPI" cmd /k "cd backend && py -3.11 -m uvicorn main:app --reload"
+start "Backend - FastAPI" cmd /k "cd backend && py -3.13 -m uvicorn main:app --reload"
 
 REM Esperar un segundo para que el backend inicie
 timeout /t 2 /nobreak >nul

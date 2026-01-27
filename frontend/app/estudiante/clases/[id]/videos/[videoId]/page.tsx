@@ -3,10 +3,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import api from "@/services/api";
-import VideoCanvasBlink from "@/components/Camera/VideoCanvasBlink";
 import VideoPlayer from "@/components/Video/VideoPlayer";
 import SessionSummaryModal from "@/components/Video/SessionSummaryModal";
-import type { CombinedDetectionResponse } from "@/types/detection";
+import { AttentionMonitor, type AttentionMetrics } from "@/components/AttentionMonitor/AttentionMonitor";
 
 interface VideoData {
   id: string;
@@ -28,36 +27,25 @@ export default function VerVideoPage() {
   const [videoData, setVideoData] = useState<VideoData | null>(null);
 
   // Estados de Atención
-  const [attentionLevel, setAttentionLevel] = useState<
-    "Alto" | "Medio" | "Bajo"
-  >("Alto");
-  const [attentionScore, setAttentionScore] = useState(1.0); // 0.0 a 1.0
-  const [accumulatedAttention, setAccumulatedAttention] = useState<number[]>(
-    []
-  );
+  const [attentionLevel, setAttentionLevel] = useState<"Alto" | "Medio" | "Bajo">("Alto");
+  const [attentionScore, setAttentionScore] = useState(1.0);
+  const [accumulatedAttention, setAccumulatedAttention] = useState<number[]>([]);
   const [showAttentionAlert, setShowAttentionAlert] = useState(false);
-  const [attentionMessage, setAttentionMessage] = useState(
-    "¡Mantén tu atención en el video!"
-  );
+  const [attentionMessage, setAttentionMessage] = useState("¡Mantén tu atención en el video!");
   const [faceDetected, setFaceDetected] = useState(true);
+
   const [isPlaying, setIsPlaying] = useState(false);
-  const [pausedTime, setPausedTime] = useState(0); // Tiempo total acumulado en pausa en segundos
-  const [currentPauseElapsed, setCurrentPauseElapsed] = useState(0); // Tiempo transcurrido en la pausa actual
-  const [videoDuration, setVideoDuration] = useState(0); // Duración total del video en segundos
+  const [pausedTime, setPausedTime] = useState(0);
+  const [currentPauseElapsed, setCurrentPauseElapsed] = useState(0);
+  const [videoDuration, setVideoDuration] = useState(0);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+
   const pauseStartTimeRef = useRef<number | null>(null);
   const pausedTimeIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lowAttentionTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const showSummaryModalRef = useRef(showSummaryModal);
-  const isMountedRef = useRef(true);
 
-  useEffect(() => {
-    showSummaryModalRef.current = showSummaryModal;
-  }, [showSummaryModal]);
-
-  // Sesión ID
+  // Sesión ID y Usuario
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -71,87 +59,12 @@ export default function VerVideoPage() {
     getUser();
   }, []);
 
-  // Stream de cámara
-  const [stream, setStream] = useState<MediaStream | null>(null);
-
-  // Ciclo de vida de la cámara según showSummaryModal: parar al abrir modal, init al cerrar y en mount, cleanup
-  useEffect(() => {
-    isMountedRef.current = true;
-
-    if (showSummaryModal) {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-        setStream(null);
-      }
-      if (lowAttentionTimerRef.current) {
-        clearTimeout(lowAttentionTimerRef.current);
-        lowAttentionTimerRef.current = null;
-      }
-      return;
-    }
-
-    if (!streamRef.current) {
-      navigator.mediaDevices
-        .getUserMedia({ video: { width: 640, height: 480 }, audio: false })
-        .then((mediaStream) => {
-          // Verificar si el componente sigue montado y si el modal no se abrió
-          if (!isMountedRef.current || showSummaryModalRef.current) {
-            mediaStream.getTracks().forEach((t) => t.stop());
-            return;
-          }
-          streamRef.current = mediaStream;
-          setStream(mediaStream);
-        })
-        .catch((err) => {
-          console.error("Error accediendo a la cámara:", err);
-        });
-    }
-
-    return () => {
-      isMountedRef.current = false;
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-        setStream(null);
-      }
-      if (lowAttentionTimerRef.current) {
-        clearTimeout(lowAttentionTimerRef.current);
-        lowAttentionTimerRef.current = null;
-      }
-    };
-  }, [showSummaryModal]);
-
-  // Cleanup garantizado al desmontar el componente (navegación fuera de la página)
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-      // Detener cámara si aún está activa
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-      }
-      // Limpiar timers
-      if (lowAttentionTimerRef.current) {
-        clearTimeout(lowAttentionTimerRef.current);
-        lowAttentionTimerRef.current = null;
-      }
-      if (pausedTimeIntervalRef.current) {
-        clearInterval(pausedTimeIntervalRef.current);
-        pausedTimeIntervalRef.current = null;
-      }
-    };
-  }, []);
-
   // Cargar datos del video
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 1. Obtener detalles de la tarea/video
         const taskRes = await api.get(`/tasks/${videoId}`);
         const task = taskRes.data;
-
-        // 2. Obtener detalles de la clase (para nombre y profesor)
         let className = "Clase";
         const professorName = "Profesor";
 
@@ -159,8 +72,6 @@ export default function VerVideoPage() {
           try {
             const classRes = await api.get(`/classes/${task.class_id}`);
             className = classRes.data.name;
-            // Si el endpoint de clase devuelve nombre de profesor, úsalo, si no, placeholder
-            // (De momento el backend no devuelve el nombre del profesor en /classes/{id}, solo el ID)
           } catch (err) {
             console.error("Error fetching class info", err);
           }
@@ -171,19 +82,17 @@ export default function VerVideoPage() {
           title: task.title,
           description: task.description || "",
           videoUrl: task.video_url,
-          videoSummary: task.transcription, // Usa transcription en lugar de video_summary
+          videoSummary: task.transcription,
           className: className,
           professor: professorName,
-          duration: "10:00", // Placeholder, o podrías obtenerlo de los metadatos del video
+          duration: "10:00",
         });
       } catch (error) {
         console.error("Error fetching video data:", error);
       }
     };
 
-    if (videoId) {
-      fetchData();
-    }
+    if (videoId) fetchData();
   }, [videoId]);
 
   // Manejar inicio de sesión de estudio
@@ -200,84 +109,33 @@ export default function VerVideoPage() {
     }
   };
 
-  // Historial de detecciones para suavizado
-  const blinkHistoryRef = useRef<boolean[]>([]);
+  // --- CALLBACK DE MONITOR DE ATENCIÓN ---
+  const handleMetricsUpdate = (metrics: AttentionMetrics) => {
+    // 1. Detección de rostro
+    setFaceDetected(metrics.faceDetected);
 
-  // Callback del componente de detección de parpadeos/atención
-  const handleAttentionUpdate = (data: CombinedDetectionResponse) => {
-    // Actualizar estado de detección de rostro
-    setFaceDetected(data.faceDetected);
-
-    // Verificar primero si hay rostro detectado
-    // Si no hay persona, marcar inmediatamente como distraído
-    if (!data.faceDetected) {
+    // Si no hay rostro, actualizar UI y salir
+    if (!metrics.faceDetected) {
       setAttentionLevel("Bajo");
       setAttentionMessage("Persona ausente - Vuelve a la cámara ⚠️");
       setAttentionScore(0.0);
       setShowAttentionAlert(true);
 
-      // Agregar al historial como "no atento"
-      blinkHistoryRef.current.push(true);
-      if (blinkHistoryRef.current.length > 10) {
-        blinkHistoryRef.current.shift();
-      }
-
-      // Debug logging
-      console.log(`[Atención] Persona ausente - Marcado como distraído`);
-
-      // Acumular datos de atención mientras se reproduce
+      // Acumular 0.0 si está reproduciendo
       if (isPlaying) {
-        setAccumulatedAttention((prev) => [...prev, 0.0]);
+        setAccumulatedAttention(prev => [...prev, 0.0]);
       }
       return;
     }
 
-    // Si hay rostro, usar la lógica de parpadeo
-    // La API devuelve: { blinking: boolean, left_ear: number, right_ear: number }
-    // blinking: true = ojos cerrados/parpadeando (EAR < 1.55) = NO atento
-    // blinking: false = ojos abiertos (EAR >= 1.55) = SÍ atento
-    const isNotAttentive = data.blinking === true;
+    // 2. Actualizar Score
+    setAttentionScore(metrics.score);
 
-    // Agregar al historial (mantener últimas 10 detecciones = ~3 segundos a 300ms/frame)
-    blinkHistoryRef.current.push(isNotAttentive);
-    if (blinkHistoryRef.current.length > 10) {
-      blinkHistoryRef.current.shift();
-    }
-
-    // Contar cuántos frames de "no atención" en el historial
-    const notAttentiveCount = blinkHistoryRef.current.filter((b) => b).length;
-    const historyLength = blinkHistoryRef.current.length;
-
-    // Calcular score: 1.0 = muy atento, 0.0 = muy distraído
-    let currentScore: number;
-
-    if (historyLength < 3) {
-      currentScore = 1.0; // No hay suficientes datos
-    } else {
-      // Score inverso a la cantidad de frames "no atento"
-      // 0 no atento de 10 = score 1.0
-      // 5 no atento de 10 = score 0.5
-      // 10 no atento de 10 = score 0.0
-      currentScore = 1.0 - notAttentiveCount / historyLength;
-    }
-
-    // Suavizado exponencial más rápido para mejor respuesta
-    const newScore = attentionScore * 0.6 + currentScore * 0.4;
-    setAttentionScore(newScore);
-
-    // Debug logging
-    console.log(
-      `[Atención] faceDetected=${data.faceDetected}, blinking=${data.blinking
-      }, noAtento:${notAttentiveCount}/${historyLength}, score=${newScore.toFixed(
-        2
-      )}`
-    );
-
-    // Actualizar nivel de atención y mensajes
+    // 3. Determinar Nivel y Mensaje
     let newLevel: "Alto" | "Medio" | "Bajo";
     let newMessage: string;
 
-    if (newScore > 0.7) {
+    if (metrics.score > 0.7) {
       newLevel = "Alto";
       newMessage = "¡Excelente! Mantén tu enfoque 👁️";
       setShowAttentionAlert(false);
@@ -285,7 +143,7 @@ export default function VerVideoPage() {
         clearTimeout(lowAttentionTimerRef.current);
         lowAttentionTimerRef.current = null;
       }
-    } else if (newScore > 0.4) {
+    } else if (metrics.score > 0.4) {
       newLevel = "Medio";
       newMessage = "Tu atención está bajando... 👀";
       if (!lowAttentionTimerRef.current) {
@@ -302,45 +160,39 @@ export default function VerVideoPage() {
     setAttentionLevel(newLevel);
     setAttentionMessage(newMessage);
 
-    // Acumular datos de atención mientras se reproduce
+    // 4. Acumular atención
     if (isPlaying) {
-      setAccumulatedAttention((prev) => [...prev, currentScore]);
+      setAccumulatedAttention(prev => [...prev, metrics.score]);
     }
   };
 
+  // Handlers de Video Player
   const handlePlayStart = () => {
     setIsPlaying(true);
     if (!sessionId) startSession();
   };
 
-  // Callback para manejar cambios en isPlaying y acumular tiempo en pausa
   const handlePlayingChange = (playing: boolean) => {
     if (playing) {
-      // Cuando se reanuda, acumular el tiempo de la pausa actual
       if (pauseStartTimeRef.current !== null) {
         const elapsed = currentPauseElapsed;
         setPausedTime((prev) => prev + elapsed);
         setCurrentPauseElapsed(0);
         pauseStartTimeRef.current = null;
       }
-      // Detener intervalo
       if (pausedTimeIntervalRef.current) {
         clearInterval(pausedTimeIntervalRef.current);
         pausedTimeIntervalRef.current = null;
       }
     } else {
-      // Cuando se pausa, iniciar contador
       if (pauseStartTimeRef.current === null) {
         pauseStartTimeRef.current = Date.now();
         setCurrentPauseElapsed(0);
       }
-      // Actualizar contador cada segundo para mostrar tiempo en tiempo real
       if (!pausedTimeIntervalRef.current) {
         pausedTimeIntervalRef.current = setInterval(() => {
           if (pauseStartTimeRef.current !== null) {
-            const elapsed = Math.floor(
-              (Date.now() - pauseStartTimeRef.current) / 1000
-            );
+            const elapsed = Math.floor((Date.now() - pauseStartTimeRef.current) / 1000);
             setCurrentPauseElapsed(elapsed);
           }
         }, 1000);
@@ -349,71 +201,35 @@ export default function VerVideoPage() {
     setIsPlaying(playing);
   };
 
-  // Limpiar intervalo al desmontar
-  useEffect(() => {
-    return () => {
-      if (pausedTimeIntervalRef.current) {
-        clearInterval(pausedTimeIntervalRef.current);
-        pausedTimeIntervalRef.current = null;
-      }
-    };
-  }, []);
-
-  // Limpiar intervalos al desmontar
-  useEffect(() => {
-    return () => {
-      if (pausedTimeIntervalRef.current) {
-        clearInterval(pausedTimeIntervalRef.current);
-      }
-    };
-  }, []);
-
-  const formatPausedTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-
-    if (hours > 0) {
-      return `${hours}:${mins.toString().padStart(2, "0")}:${secs
-        .toString()
-        .padStart(2, "0")}`;
-    }
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
   const handleFinish = () => {
-    // Mostrar modal de resumen en lugar de finalizar directamente
     setShowSummaryModal(true);
   };
 
-  const handleConfirmFinish = async (attentionLevel: "alto" | "medio" | "bajo") => {
+  const handleConfirmFinish = async (level: "alto" | "medio" | "bajo") => {
     setShowSummaryModal(false);
     setIsGeneratingQuiz(true);
 
     let activeSessionId = sessionId;
-
     if (!activeSessionId) {
-      // Si no hay sesión iniciada, intentar iniciarla ahora para poder generar el quiz
       try {
         const res = await api.post("/sessions/start", {
           student_id: userId,
-          task_id: videoId,
+          task_id: videoId
         });
         activeSessionId = res.data.session.id;
         setSessionId(activeSessionId);
       } catch (e) {
-        console.error("Error starting session explicitly for finish:", e);
+        console.error("Error starting session:", e);
         setIsGeneratingQuiz(false);
-        alert("No se pudo iniciar la sesión para generar el cuestionario.");
+        alert("No se pudo iniciar la sesión.");
         return;
       }
     }
 
-    // Usar el attentionLevel recibido del modal (fuente de verdad)
     try {
       const res = await api.post("/sessions/end", {
         session_id: activeSessionId,
-        attention_level: attentionLevel,
+        attention_level: level,
       });
       const { quiz_id } = res.data;
       setIsGeneratingQuiz(false);
@@ -421,83 +237,58 @@ export default function VerVideoPage() {
     } catch (error) {
       console.error("Error generating quiz:", error);
       setIsGeneratingQuiz(false);
-      alert("Error al generar el cuestionario. Intenta de nuevo.");
+      alert("Error al generar el cuestionario.");
     }
   };
 
-  if (!videoData)
-    return <div className="p-10 text-center text-white">Cargando video...</div>;
+  const formatPausedTime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    if (hours > 0) return `${hours}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
 
-  // Pantalla de carga mientras se genera el cuestionario
+  // Cleanup hooks
+  useEffect(() => {
+    return () => {
+      if (pausedTimeIntervalRef.current) clearInterval(pausedTimeIntervalRef.current);
+      if (lowAttentionTimerRef.current) clearTimeout(lowAttentionTimerRef.current);
+    };
+  }, []);
+
+  if (!videoData) return <div className="p-10 text-center text-white">Cargando video...</div>;
+
   if (isGeneratingQuiz) {
     return (
-      <div className="flex flex-col h-screen w-full overflow-hidden bg-background-light text-[#111318]">
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-6 max-w-md mx-auto px-6">
-            {/* Spinner animado */}
-            <div className="relative w-24 h-24">
-              <div className="absolute inset-0 border-4 border-primary/20 rounded-full"></div>
-              <div className="absolute inset-0 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-            </div>
-
-            {/* Texto de carga */}
-            <div className="text-center space-y-2">
-              <h2 className="text-2xl font-bold text-[#111318]">
-                Generando Cuestionario
-              </h2>
-              <p className="text-[#616f89]">
-                Estamos creando preguntas personalizadas basadas en tu nivel de atención...
-              </p>
-            </div>
-
-            {/* Indicador de progreso animado */}
-            <div className="w-full max-w-xs space-y-2">
-              <div className="flex gap-1 justify-center">
-                <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="flex flex-col h-screen w-full overflow-hidden bg-white text-[#111318] items-center justify-center">
+        <h2 className="text-2xl font-bold mb-4">Generando Cuestionario...</h2>
+        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-background-light text-[#111318]">
-      {/* Top Navigation */}
+      {/* Header */}
       <header className="flex items-center justify-between border-b border-[#e5e7eb] px-6 py-3 bg-white z-20 h-16 shrink-0">
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 transition-colors text-[#616f89]"
-          >
+          <button onClick={() => router.back()} className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 text-[#616f89]">
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
-          <h2 className="text-base font-bold text-[#111318]">
-            {videoData.title}
-          </h2>
+          <h2 className="text-base font-bold text-[#111318]">{videoData.title}</h2>
         </div>
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.push(`/estudiante/clases/${classId}/videos`)}
-            className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 transition-colors text-[#616f89]"
-            title="Volver a videos"
-          >
+          <button onClick={() => router.push(`/estudiante/clases/${classId}/videos`)} className="text-[#616f89] hover:bg-gray-100 p-2 rounded-full">
             <span className="material-symbols-outlined">close</span>
           </button>
-          <div className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-1.5 rounded-lg transition-colors">
-            <div className="w-8 h-8 rounded-full bg-gray-200 border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
-              SO
-            </div>
-          </div>
         </div>
       </header>
 
-      {/* Main Content Area */}
+      {/* Main Layout */}
       <main className="flex-1 flex overflow-hidden relative">
-        {/* Video Player Section */}
+
+        {/* Video Player */}
         <VideoPlayer
           videoUrl={videoData.videoUrl}
           attentionLevel={attentionLevel}
@@ -510,152 +301,54 @@ export default function VerVideoPage() {
           onDurationChange={setVideoDuration}
         />
 
-        {/* Sidebar (Right) */}
-        <aside className="w-80 bg-white border-l border-[#e5e7eb] flex flex-col shrink-0 z-20 fixed right-0 top-16 h-[calc(100vh-4rem)] lg:relative lg:top-0 lg:h-auto transition-transform duration-300 translate-x-0 lg:flex">
-          {/* User Camera Preview */}
+        {/* Sidebar */}
+        <aside className="w-80 bg-white border-l border-[#e5e7eb] flex flex-col shrink-0 z-20 h-full overflow-y-auto">
+          {/* Monitor de Atención Integrado */}
           <div className="p-4 border-b border-[#e5e7eb]">
-            <h3 className="text-xs font-bold text-gray-500 uppercase mb-2">
-              Monitor de Atención
-            </h3>
+            <h3 className="text-xs font-bold text-gray-500 uppercase mb-2">Monitor de Atención</h3>
             {showSummaryModal ? (
-              <div className="w-full aspect-video bg-gray-100 rounded-lg border-2 border-[#e5e7eb] flex flex-col items-center justify-center gap-2">
-                <span className="material-symbols-outlined text-4xl text-gray-400">
-                  videocam_off
-                </span>
-                <p className="text-sm text-gray-500 text-center px-4">
-                  Sesión finalizada – Monitor desactivado
-                </p>
+              <div className="w-full aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+                <p className="text-sm text-gray-500">Sesión Finalizada</p>
               </div>
             ) : (
-              <div className="w-full aspect-video bg-black/80 rounded-lg border-2 border-[#e5e7eb] overflow-hidden shadow-lg relative">
-                <VideoCanvasBlink
-                  isActive={!showSummaryModal}
-                  stream={stream}
-                  onBlink={handleAttentionUpdate}
-                  width={280}
-                  height={210}
-                />
-                <div
-                  className={`absolute bottom-0 left-0 right-0 px-3 py-2 flex flex-col items-center gap-1 transition-all duration-300 ${attentionLevel === "Alto"
-                      ? "bg-green-900/70"
-                      : attentionLevel === "Medio"
-                        ? "bg-yellow-900/70"
-                        : "bg-red-900/70"
-                    }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`w-2.5 h-2.5 rounded-full ${attentionLevel === "Alto"
-                          ? "bg-green-400 animate-pulse"
-                          : attentionLevel === "Medio"
-                            ? "bg-yellow-400 animate-pulse"
-                            : "bg-red-400 animate-ping"
-                        }`}
-                    ></div>
-                    <span
-                      className={`text-xs font-bold uppercase tracking-wide ${attentionLevel === "Alto"
-                          ? "text-green-300"
-                          : attentionLevel === "Medio"
-                            ? "text-yellow-300"
-                            : "text-red-300"
-                        }`}
-                    >
-                      {attentionLevel === "Alto"
-                        ? "✓ Atento"
-                        : attentionLevel === "Medio"
-                          ? "⚠ Atención Media"
-                          : "⚠ Distraído"}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <AttentionMonitor
+                className="w-full"
+                onMetricsUpdate={handleMetricsUpdate}
+                showDebugInfo={false}
+              />
             )}
           </div>
 
-          {/* Video Details */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-y-auto p-4">
-              <div>
-                <h3 className="text-lg font-bold text-[#111318] mb-2">
-                  {videoData.title}
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  {videoData.description}
-                </p>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-[#616f89]">
-                    <span className="material-symbols-outlined text-[18px]">
-                      school
-                    </span>
-                    <span>{videoData.className}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-[#616f89]">
-                    <span className="material-symbols-outlined text-[18px]">
-                      person
-                    </span>
-                    <span>{videoData.professor}</span>
-                  </div>
-                </div>
-              </div>
+          {/* Info Video */}
+          <div className="p-4 flex-1">
+            <h3 className="text-lg font-bold mb-2">{videoData.title}</h3>
+            <p className="text-sm text-gray-600 mb-4">{videoData.description}</p>
 
-              {/* Contador de tiempo en pausa */}
-              <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[18px] text-gray-600">
-                      pause_circle
-                    </span>
-                    <span className="text-sm font-medium text-gray-700">
-                      Tiempo en pausa:
-                    </span>
-                  </div>
-                  <span className="text-sm font-bold text-gray-900">
-                    {formatPausedTime(pausedTime + currentPauseElapsed)}
-                  </span>
-                </div>
+            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 mb-4">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-600">Tiempo en pausa:</span>
+                <span className="font-bold">{formatPausedTime(pausedTime + currentPauseElapsed)}</span>
               </div>
             </div>
 
-            {/* Privacy Notice and Button */}
-            <div className="p-4 pt-0 border-t border-[#e5e7eb] flex flex-col gap-3 shrink-0">
-              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="flex items-start gap-2">
-                  <span className="material-symbols-outlined text-blue-600 text-[18px] mt-0.5">
-                    info
-                  </span>
-                  <div className="flex-1">
-                    <p className="text-xs font-semibold text-blue-900 mb-1">
-                      Nota de Privacidad
-                    </p>
-                    <p className="text-[10px] text-blue-800 leading-relaxed">
-                      Se están tomando datos biométricos para evaluar tu
-                      atención.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={handleFinish}
-                className="w-full px-4 py-3 bg-primary hover:bg-blue-700 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-primary/30"
-              >
-                <span>Finalizar Video</span>
-                <span className="material-symbols-outlined text-lg">
-                  arrow_forward
-                </span>
-              </button>
-            </div>
+            <button
+              onClick={handleFinish}
+              className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <span>Finalizar Video</span>
+            </button>
           </div>
         </aside>
       </main>
 
-      {/* Modal de resumen */}
+      {/* Modal Resumen */}
       <SessionSummaryModal
         isOpen={showSummaryModal}
         onClose={() => setShowSummaryModal(false)}
         onConfirm={handleConfirmFinish}
         pausedTime={pausedTime + currentPauseElapsed}
         accumulatedAttention={accumulatedAttention}
-        totalVideoTime={videoDuration || 1} // Evitar división por cero
+        totalVideoTime={videoDuration || 1}
       />
     </div>
   );
