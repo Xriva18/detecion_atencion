@@ -1,19 +1,19 @@
-web:
+services:
   - type: web
     name: detecion-atencion-backend
-    runtime: python
+    runtime: docker
     region: oregon
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_KEY
         sync: false
       - key: GEMINI_API_KEY
+        sync: false
+      - key: FRONTEND_URL
         sync: false
       - key: PYTHONDONTWRITEBYTECODE
         value: 1
