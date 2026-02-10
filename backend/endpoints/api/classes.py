@@ -127,9 +127,6 @@ async def get_classes(current_user: any = Depends(get_current_user)):
     except Exception as e:
         print(f"Error getting classes: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-    except Exception as e:
-        print(f"Error getting classes: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/join")
 async def join_class_by_code(request: JoinClassRequest, current_user: any = Depends(get_current_user)):

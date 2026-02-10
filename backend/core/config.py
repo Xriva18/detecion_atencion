@@ -27,8 +27,9 @@ class Settings(BaseSettings):
     
     # Configuración de detección de parpadeo
     # Configuración de detección de parpadeo
-    ear_threshold: float = 0.25  # Umbral EAR estándar (0.2 - 0.3)
-    ear_distraction_threshold: float = 0.25  # EAR bajo para detectar ojos cerrados/fatiga
+    ear_threshold: float = 0.20  # Umbral EAR estándar
+    ear_distraction_threshold: float = 0.13  # Detecta ojos CERRADOS (< 0.13)
+    ear_drowsy_threshold: float = 0.18  # Detecta ojos SEMI-CERRADOS (0.13 - 0.18)
     
     # Configuración de monitoreo de atención
     gaze_yaw_threshold: float = 20.0  # Umbral en grados para detectar desvío lateral de mirada

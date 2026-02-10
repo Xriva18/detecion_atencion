@@ -122,16 +122,8 @@ async def get_users(
             # Search by name or email
             query = query.or_(f"full_name.ilike.%{search}%,email.ilike.%{search}%")
             
-        # Pagination
-        count_res = query.execute() # Get count first? count="exact" handled.
-        # Note: supbase-py chain order matters. Range should be last usually.
-        # But if we use count="exact", execute() returns count. 
-        # Actually with supabase-py, .range() applies limit/offset.
-        
-        # Re-apply query for data because count query might differ if not handled properly or reuse.
-        # Supabase returns count in response if count='exact' is passed.
-        
-        # Execute with pagination
+        # Pagination - count="exact" returns count in the response
+        # Apply range and order for data retrieval
         query = query.range(skip, skip + limit - 1).order("created_at", desc=True)
         res = query.execute()
         

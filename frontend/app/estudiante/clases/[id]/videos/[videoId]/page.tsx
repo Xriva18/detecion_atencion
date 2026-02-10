@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import api from "@/services/api";
 import VideoPlayer from "@/components/Video/VideoPlayer";
-import SessionSummaryModal from "@/components/Video/SessionSummaryModal";
 import { AttentionMonitor, type AttentionMetrics } from "@/components/AttentionMonitor/AttentionMonitor";
 
 interface VideoData {
@@ -38,12 +37,15 @@ export default function VerVideoPage() {
   const [pausedTime, setPausedTime] = useState(0);
   const [currentPauseElapsed, setCurrentPauseElapsed] = useState(0);
   const [videoDuration, setVideoDuration] = useState(0);
-  const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+  const [videoFinished, setVideoFinished] = useState(false);
 
   const pauseStartTimeRef = useRef<number | null>(null);
   const pausedTimeIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lowAttentionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Ref estable para isPlaying (evita recrear handleMetricsUpdate en cada render)
+  const isPlayingRef = useRef(false);
+  isPlayingRef.current = isPlaying;
 
   // Sesión ID y Usuario
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -109,8 +111,8 @@ export default function VerVideoPage() {
     }
   };
 
-  // --- CALLBACK DE MONITOR DE ATENCIÓN ---
-  const handleMetricsUpdate = (metrics: AttentionMetrics) => {
+  // --- CALLBACK DE MONITOR DE ATENCIÓN (estable con useCallback) ---
+  const handleMetricsUpdate = useCallback((metrics: AttentionMetrics) => {
     // 1. Detección de rostro
     setFaceDetected(metrics.faceDetected);
 
@@ -121,8 +123,8 @@ export default function VerVideoPage() {
       setAttentionScore(0.0);
       setShowAttentionAlert(true);
 
-      // Acumular 0.0 si está reproduciendo
-      if (isPlaying) {
+      // Acumular 0.0 si está reproduciendo (usa ref, no estado)
+      if (isPlayingRef.current) {
         setAccumulatedAttention(prev => [...prev, 0.0]);
       }
       return;
@@ -160,11 +162,11 @@ export default function VerVideoPage() {
     setAttentionLevel(newLevel);
     setAttentionMessage(newMessage);
 
-    // 4. Acumular atención
-    if (isPlaying) {
+    // 4. Acumular atención (usa ref, no estado)
+    if (isPlayingRef.current) {
       setAccumulatedAttention(prev => [...prev, metrics.score]);
     }
-  };
+  }, []); // Deps vacías: función estable, usa refs para valores dinámicos
 
   // Handlers de Video Player
   const handlePlayStart = () => {
@@ -201,13 +203,17 @@ export default function VerVideoPage() {
     setIsPlaying(playing);
   };
 
-  const handleFinish = () => {
-    setShowSummaryModal(true);
-  };
-
-  const handleConfirmFinish = async (level: "alto" | "medio" | "bajo") => {
-    setShowSummaryModal(false);
+  // Cuando el video termina naturalmente (onEnded), auto-generar quiz
+  const handleFinish = useCallback(async () => {
+    if (videoFinished || isGeneratingQuiz) return; // Evitar doble ejecución
+    setVideoFinished(true);
     setIsGeneratingQuiz(true);
+
+    // Calcular nivel de atención basado en los datos acumulados
+    const avgScore = accumulatedAttention.length > 0
+      ? accumulatedAttention.reduce((a, b) => a + b, 0) / accumulatedAttention.length
+      : 0.5;
+    const level: "alto" | "medio" | "bajo" = avgScore > 0.7 ? "alto" : avgScore > 0.4 ? "medio" : "bajo";
 
     let activeSessionId = sessionId;
     if (!activeSessionId) {
@@ -221,6 +227,7 @@ export default function VerVideoPage() {
       } catch (e) {
         console.error("Error starting session:", e);
         setIsGeneratingQuiz(false);
+        setVideoFinished(false);
         alert("No se pudo iniciar la sesión.");
         return;
       }
@@ -232,14 +239,14 @@ export default function VerVideoPage() {
         attention_level: level,
       });
       const { quiz_id } = res.data;
-      setIsGeneratingQuiz(false);
       router.push(`/estudiante/cuestionario/${quiz_id}`);
     } catch (error) {
       console.error("Error generating quiz:", error);
       setIsGeneratingQuiz(false);
+      setVideoFinished(false);
       alert("Error al generar el cuestionario.");
     }
-  };
+  }, [videoFinished, isGeneratingQuiz, accumulatedAttention, sessionId, userId, videoId, router]);
 
   const formatPausedTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -306,7 +313,7 @@ export default function VerVideoPage() {
           {/* Monitor de Atención Integrado */}
           <div className="p-4 border-b border-[#e5e7eb]">
             <h3 className="text-xs font-bold text-gray-500 uppercase mb-2">Monitor de Atención</h3>
-            {showSummaryModal ? (
+            {videoFinished ? (
               <div className="w-full aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
                 <p className="text-sm text-gray-500">Sesión Finalizada</p>
               </div>
@@ -330,26 +337,11 @@ export default function VerVideoPage() {
                 <span className="font-bold">{formatPausedTime(pausedTime + currentPauseElapsed)}</span>
               </div>
             </div>
-
-            <button
-              onClick={handleFinish}
-              className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
-            >
-              <span>Finalizar Video</span>
-            </button>
           </div>
         </aside>
       </main>
 
-      {/* Modal Resumen */}
-      <SessionSummaryModal
-        isOpen={showSummaryModal}
-        onClose={() => setShowSummaryModal(false)}
-        onConfirm={handleConfirmFinish}
-        pausedTime={pausedTime + currentPauseElapsed}
-        accumulatedAttention={accumulatedAttention}
-        totalVideoTime={videoDuration || 1}
-      />
+
     </div>
   );
 }

@@ -28,11 +28,11 @@ class HeadPoseService:
     
     MODEL_POINTS_3D = np.array([
         (0.0, 0.0, 0.0),          # Punta de la nariz
-        (0.0, -330.0, -65.0),     # Mentón
-        (-225.0, 170.0, -135.0),  # Esquina ojo izquierdo
-        (225.0, 170.0, -135.0),   # Esquina ojo derecho
-        (-150.0, -150.0, -125.0), # Esquina boca izquierda
-        (150.0, -150.0, -125.0)   # Esquina boca derecha
+        (0.0, 330.0, 65.0),       # Mentón (Y positivo = abajo, Z positivo = hacia atrás)
+        (-225.0, -170.0, 135.0),  # Esquina ojo izquierdo (Z positivo = hacia atrás)
+        (225.0, -170.0, 135.0),   # Esquina ojo derecho
+        (-150.0, 150.0, 125.0),   # Esquina boca izquierda
+        (150.0, 150.0, 125.0)     # Esquina boca derecha
     ], dtype=np.float64)
     
     MEDIAPIPE_LANDMARK_INDICES = [
@@ -115,8 +115,18 @@ class HeadPoseService:
         return np.array(points_2d, dtype=np.float64)
     
     def _rotation_matrix_to_euler(self, rotation_matrix: np.ndarray) -> tuple:
+        """
+        Calcula ángulos de Euler (Yaw, Pitch, Roll) desde la matriz de rotación.
+        Retorna: (yaw, pitch, roll) en grados.
+        """
+        # Calcular ángulos de Euler (convención XYZ o ZYX depende de solvePnP)
+        # OpenCV solvePnP usa un sistema de coordenadas donde Z es hacia adelante
+        
+        # Sy = sqrt(R00^2 + R10^2)
         sy = np.sqrt(rotation_matrix[0, 0] ** 2 + rotation_matrix[1, 0] ** 2)
+        
         singular = sy < 1e-6
+        
         if not singular:
             x = np.arctan2(rotation_matrix[2, 1], rotation_matrix[2, 2])
             y = np.arctan2(-rotation_matrix[2, 0], sy)
@@ -125,7 +135,21 @@ class HeadPoseService:
             x = np.arctan2(-rotation_matrix[1, 2], rotation_matrix[1, 1])
             y = np.arctan2(-rotation_matrix[2, 0], sy)
             z = 0
-        return np.degrees(z), np.degrees(y), np.degrees(x)
+            
+        # Convertir a grados
+        rx = np.degrees(x)
+        ry = np.degrees(y)
+        rz = np.degrees(z)
+        
+        # Pitch = x (rotación sobre eje X)
+        # Yaw = y (rotación sobre eje Y)
+        # Roll = z (rotación sobre eje Z)
+        
+        # Ajustar rangos si es necesario
+        # Pitch positivo = arriba, negativo = abajo
+        # Yaw positivo = derecha, negativo = izquierda (o viceversa según cámara)
+        
+        return ry, rx, rz  # Orden: Yaw, Pitch, Roll
     
     def estimate_pose(
         self, 

@@ -29,8 +29,8 @@ const ALERT_DURATION = 3000; // 3 segundos antes de mostrar alerta
 const CALIBRATION_STORAGE_KEY = "attention_calibration";
 
 export interface UseAttentionMonitorOptions {
-    videoRef: React.RefObject<HTMLVideoElement>;
-    canvasRef: React.RefObject<HTMLCanvasElement>;
+    videoRef: React.RefObject<HTMLVideoElement | null>;
+    canvasRef: React.RefObject<HTMLCanvasElement | null>;
     enabled?: boolean;
     onAlert?: () => void;
 }
@@ -286,6 +286,17 @@ export function useAttentionMonitor({
         setCalibrationData(finalData);
         setIsCalibrated(true);
         setIsCalibrating(false);
+
+        // Enviar calibración al backend
+        if (serviceRef.current?.isConnected()) {
+            serviceRef.current.sendMessage({
+                type: "calibration",
+                offset: {
+                    yaw: avgYaw,
+                    pitch: avgPitch
+                }
+            });
+        }
     }, [calibrationData]);
 
     const resetCalibration = useCallback(() => {

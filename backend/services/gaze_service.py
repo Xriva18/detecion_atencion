@@ -107,19 +107,19 @@ class GazeService:
             # Recortar rostro si se proporciona bbox
             if bbox is not None:
                 x, y, w, h = bbox
-                # Agregar margen del 20%
-                margin = 0.2
-                x_margin = int(w * margin)
-                y_margin = int(h * margin)
-                
-                x1 = max(0, x - x_margin)
-                y1 = max(0, y - y_margin)
-                x2 = min(img.shape[1], x + w + x_margin)
-                y2 = min(img.shape[0], y + h + y_margin)
+                # Usar bbox directamente (el caller ya aplica padding adecuado)
+                x1 = max(0, x)
+                y1 = max(0, y)
+                x2 = min(img.shape[1], x + w)
+                y2 = min(img.shape[0], y + h)
                 
                 face_img = img[y1:y2, x1:x2]
             else:
                 face_img = img
+            
+            # Verificar que la imagen no esté vacía
+            if face_img.size == 0 or face_img.shape[0] < 10 or face_img.shape[1] < 10:
+                return None
             
             # Convertir BGR a RGB
             face_rgb = cv2.cvtColor(face_img, cv2.COLOR_BGR2RGB)

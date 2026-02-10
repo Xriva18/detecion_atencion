@@ -65,7 +65,8 @@ export default function VideoPlayer({
     // Solo cambiar velocidad si el video está reproduciéndose y hay persona presente
     if (isPlaying && faceDetected && videoRef.current.playbackRate !== targetRate) {
       videoRef.current.playbackRate = targetRate;
-      setPlaybackRate(targetRate);
+      // Solo actualizar estado si realmente cambió (evitar re-render)
+      setPlaybackRate(prev => prev === targetRate ? prev : targetRate);
       console.log(`[VideoPlayer] Velocidad cambiada a ${targetRate}x (Nivel: ${attentionLevel})`);
     }
   }, [attentionLevel, faceDetected, isPlaying, isVideoReady]);
@@ -184,7 +185,11 @@ export default function VideoPlayer({
   };
 
   const handleTimeUpdate = () => {
-    if (videoRef.current) setCurrentTime(videoRef.current.currentTime);
+    if (videoRef.current) {
+      const newTime = videoRef.current.currentTime;
+      // Solo actualizar si cambió más de 0.25s (evitar re-renders excesivos)
+      setCurrentTime(prev => Math.abs(prev - newTime) > 0.25 ? newTime : prev);
+    }
   };
 
   const handleLoadedMetadata = () => {
@@ -234,8 +239,11 @@ export default function VideoPlayer({
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (videoRef.current) {
       const newTime = (parseFloat(e.target.value) / 100) * duration;
-      videoRef.current.currentTime = newTime;
-      setCurrentTime(newTime);
+      // Solo permitir retroceder, no adelantar
+      if (newTime <= videoRef.current.currentTime) {
+        videoRef.current.currentTime = newTime;
+        setCurrentTime(newTime);
+      }
     }
   };
 
@@ -257,7 +265,7 @@ export default function VideoPlayer({
         clearTimeout(hideControlsTimerRef.current);
       }
       if (playPromiseRef.current) {
-        playPromiseRef.current.catch(() => {});
+        playPromiseRef.current.catch(() => { });
         playPromiseRef.current = null;
       }
       if (videoRef.current) {
@@ -310,20 +318,19 @@ export default function VideoPlayer({
         {/* Attention Level Indicator */}
         <div className="absolute top-4 right-4 z-30 flex flex-col gap-2">
           <div
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all duration-300 ${
-              attentionLevel === "Alto"
-                ? "bg-green-100 text-green-700 border border-green-200"
-                : attentionLevel === "Medio"
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all duration-300 ${attentionLevel === "Alto"
+              ? "bg-green-100 text-green-700 border border-green-200"
+              : attentionLevel === "Medio"
                 ? "bg-yellow-100 text-yellow-700 border border-yellow-200"
                 : "bg-red-100 text-red-700 border border-red-200 animate-pulse"
-            }`}
+              }`}
           >
             <span className="material-symbols-outlined text-sm">
               {attentionLevel === "Alto"
                 ? "visibility"
                 : attentionLevel === "Medio"
-                ? "visibility_off"
-                : "warning"}
+                  ? "visibility_off"
+                  : "warning"}
             </span>
             <span>Atención: {attentionLevel}</span>
           </div>
@@ -357,18 +364,16 @@ export default function VideoPlayer({
 
         {/* Video Controls Overlay */}
         <div
-          className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/60 transition-opacity duration-300 flex flex-col justify-end p-6 z-10 ${
-            showControls || !isPlaying ? "opacity-100" : "opacity-0"
-          }`}
+          className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/60 transition-opacity duration-300 flex flex-col justify-end p-6 z-10 ${showControls || !isPlaying ? "opacity-100" : "opacity-0"
+            }`}
         >
           {/* Progress Bar */}
           <div className="w-full h-1.5 bg-white/20 rounded-full mb-4 cursor-pointer relative group/progress">
             <div
               className="absolute top-0 left-0 h-full bg-primary rounded-full relative"
               style={{
-                width: `${
-                  duration > 0 ? (currentTime / duration) * 100 : 0
-                }%`,
+                width: `${duration > 0 ? (currentTime / duration) * 100 : 0
+                  }%`,
               }}
             >
               <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full scale-0 group-hover/progress:scale-100 transition-transform shadow-md"></div>
@@ -425,17 +430,13 @@ export default function VideoPlayer({
               </span>
             </div>
             <div className="flex items-center gap-4">
-              <button
-                onClick={() =>
-                  handlePlaybackRateChange(
-                    playbackRate === 1 ? 1.5 : playbackRate === 1.5 ? 2 : 1
-                  )
-                }
-                className="px-2 py-1 bg-white/10 hover:bg-white/20 rounded text-xs font-bold tracking-wider transition-colors"
-                title="Velocidad manual (se sobrescribe con velocidad automática)"
+              {/* Velocidad controlada automáticamente por atención */}
+              <span
+                className="px-2 py-1 bg-white/10 rounded text-xs font-bold tracking-wider"
+                title="Velocidad automática basada en nivel de atención"
               >
                 {playbackRate}x
-              </button>
+              </span>
               <button className="hover:text-primary transition-colors">
                 <span
                   className="material-symbols-outlined"

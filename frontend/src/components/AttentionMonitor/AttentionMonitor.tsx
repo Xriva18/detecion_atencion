@@ -88,30 +88,28 @@ export function AttentionMonitor({
         onAlert: handleAlert
     });
 
+    // Refs estables para callbacks (evitar que cambios de callback disparen el useEffect)
+    const onAttentionChangeRef = useRef(onAttentionChange);
+    const onMetricsUpdateRef = useRef(onMetricsUpdate);
+    onAttentionChangeRef.current = onAttentionChange;
+    onMetricsUpdateRef.current = onMetricsUpdate;
+
     // Notificar cambios de atención con Throttling
     useEffect(() => {
         const now = Date.now();
         const timeDiff = now - lastMetricsTimeRef.current;
         const scoreDiff = Math.abs(attentionScore - lastMetricsScoreRef.current);
 
-        // Criterios de actualización:
-        // 1. Han pasado más de 100ms
-        // 2. El score cambió más del 5% (0.05)
-        // 3. El estado de atención cambió (engaged/distracted/unknown)
-        // 4. La detección de rostro cambió
         const isSignificantScoreChange = scoreDiff > 0.05;
         const isTimeDue = timeDiff > 100;
 
-        // Forzar actualización si hay un cambio significativo o si ha pasado suficiente tiempo
-        // También forzar si el estado es "unknown" (para notificar faceDetected, etc.)
-        // o si el estado de atención ha cambiado (engaged/distracted)
         if (isTimeDue || isSignificantScoreChange || status !== "unknown") {
-            if (onAttentionChange && status !== "unknown") {
-                onAttentionChange(attentionScore, status);
+            if (onAttentionChangeRef.current && status !== "unknown") {
+                onAttentionChangeRef.current(attentionScore, status);
             }
 
-            if (onMetricsUpdate) {
-                onMetricsUpdate({
+            if (onMetricsUpdateRef.current) {
+                onMetricsUpdateRef.current({
                     score: attentionScore,
                     status,
                     faceDetected,
@@ -121,7 +119,6 @@ export function AttentionMonitor({
                 });
             }
 
-            // Actualizar refs solo si notificamos
             lastMetricsTimeRef.current = now;
             lastMetricsScoreRef.current = attentionScore;
         }
@@ -131,9 +128,8 @@ export function AttentionMonitor({
         faceDetected,
         isBlinking,
         gaze,
-        pose,
-        onAttentionChange,
-        onMetricsUpdate
+        pose
+        // NO incluir onAttentionChange ni onMetricsUpdate (están en refs)
     ]);
 
     // Inicializar cámara
@@ -296,31 +292,7 @@ export function AttentionMonitor({
                 )}
             </div>
 
-            {/* Panel de calibración */}
-            <div className="mt-4 flex gap-2">
-                {!isCalibrated ? (
-                    <button
-                        onClick={startCalibration}
-                        disabled={!isConnected}
-                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        🎯 Calibrar Mirada
-                    </button>
-                ) : (
-                    <button
-                        onClick={resetCalibration}
-                        className="flex-1 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-                    >
-                        🔄 Recalibrar
-                    </button>
-                )}
-
-                {isCalibrated && (
-                    <span className="flex items-center text-xs text-green-400">
-                        ✓ Calibrado
-                    </span>
-                )}
-            </div>
+            {/* Calibración removida para simplificar UI de estudiante */}
 
             {/* Info de debug */}
             {showDebugInfo && (

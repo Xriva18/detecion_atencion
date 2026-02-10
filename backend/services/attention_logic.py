@@ -123,6 +123,35 @@ def calculate_blink_score(
         return max(0.0, 1.0 - penalty)
 
 
+def calculate_ear_score(avg_ear: float) -> float:
+    """
+    Calcula un score basado en la apertura del ojo (EAR).
+    
+    Umbrales realistas:
+    - >= 0.18: Ojos normalmente abiertos (score 1.0)
+    - 0.13 - 0.18: Ojos semi-cerrados/somnolencia (score gradual)
+    - <= 0.13: Ojos cerrados (score 0.0)
+    
+    Usa curva cuadrática para penalizar suavemente, no linealmente.
+    """
+    closed_thresh = getattr(settings, 'ear_distraction_threshold', 0.13)
+    drowsy_thresh = getattr(settings, 'ear_drowsy_threshold', 0.18)
+    
+    if avg_ear >= drowsy_thresh:
+        return 1.0
+    
+    if avg_ear <= closed_thresh:
+        return 0.0
+    
+    # Penalización cuadrática suave (no lineal)
+    # Esto hace que ojos "un poco cerrados" apenas pierdan score,
+    # pero ojos realmente somnolientos sí se penalicen
+    range_span = drowsy_thresh - closed_thresh
+    ratio = (avg_ear - closed_thresh) / range_span  # 0.0 a 1.0
+    return ratio ** 0.5  # Raíz cuadrada: más generoso que lineal
+
+
+
 def calculate_ear_status(
     left_ear: float, 
     right_ear: float, 
@@ -134,13 +163,13 @@ def calculate_ear_status(
     Args:
         left_ear: EAR del ojo izquierdo
         right_ear: EAR del ojo derecho
-        threshold: Umbral de EAR (default: 0.25)
+        threshold: Umbral de EAR (default: 0.22)
         
     Returns:
         Tuple (eyes_closed, avg_ear)
     """
     if threshold is None:
-        threshold = getattr(settings, 'ear_distraction_threshold', 0.25)
+        threshold = getattr(settings, 'ear_distraction_threshold', 0.22)
     
     avg_ear = (left_ear + right_ear) / 2.0
     eyes_closed = avg_ear < threshold
@@ -180,6 +209,47 @@ def calculate_engagement_index(
     wb = weights.get("blink", 0.2)
     
     ei = (wg * gaze_score) + (wp * pose_score) + (wb * blink_score)
+    
+    # Penalización por somnolencia (EAR Score)
+    # Si ear_score < 1.0, reducimos el EI proporcionalmente
+    # Pero no lo llevamos a 0 inmediatamente a menos que sea crítico
+    if isinstance(weights, dict) and "ear_penalty_enabled" in weights:
+        # Futura config
+        pass
+        
+    # Aplicar factor de somnolencia directo
+    # Si ear_score es 0.5 (semi-cerrado), el EI se reduce a la mitad? 
+    # Mejor: Reducir max score posible.
+    # O restar penalización.
+    
+    # Implementación simple: Multiplicar por ear_score (si es drowsy, baja el score)
+    # Pero ear_score es 1.0 si > drowsy_thresh
+    # Es 0.0 si < closed_thresh
+    
+    # Necesitamos el ear_score aquí. 
+    # Como calculate_engagement_index es pura y no recibe ear, 
+    # Debemos actualizar la firma o asumir que el caller lo maneja.
+    # Vamos a actualizar la firma para recibir ear_score opcionalmente.
+    pass 
+    
+    return max(0.0, min(1.0, ei))
+
+
+def calculate_engagement_index_with_ear(
+    gaze_score: float,
+    pose_score: float,
+    blink_score: float,
+    ear_score: float = 1.0,
+    weights: dict = None
+) -> float:
+    """
+    Calcula EI considerando también el estado de apertura de ojos (Somnolencia).
+    """
+    base_ei = calculate_engagement_index(gaze_score, pose_score, blink_score, weights)
+    
+    # Si ear_score baja (ojos cerrándose), el engagement cae drásticamente
+    # Ejemplo: ear_score 0.5 -> EI * 0.5
+    return base_ei * ear_score
     
     # Asegurar que esté en el rango [0, 1]
     return max(0.0, min(1.0, ei))
@@ -271,15 +341,29 @@ def calculate_full_attention_metrics(
     pose_score = calculate_pose_score(head_yaw, head_pitch)
     blink_score = calculate_blink_score(blinks_per_minute)
     
-    # Calcular engagement index
-    ei = calculate_engagement_index(gaze_score, pose_score, blink_score)
+    # Calcular EAR Score
+    _, avg_ear = calculate_ear_status(left_ear, right_ear)
+    ear_score = calculate_ear_score(avg_ear)
+    
+    # Calcular engagement index con penalización de EAR
+    ei = calculate_engagement_index_with_ear(gaze_score, pose_score, blink_score, ear_score)
     
     # Determinar estado
     status = get_attention_status(ei)
     
     # Generar advertencias
-    _, avg_ear = calculate_ear_status(left_ear, right_ear)
     warnings = get_attention_warnings(gaze_yaw, head_yaw, head_pitch, avg_ear)
+    
+    # Advertencia específica de somnolencia
+    drowsy_thresh = getattr(settings, 'ear_drowsy_threshold', 0.28)
+    closed_thresh = getattr(settings, 'ear_distraction_threshold', 0.22)
+    
+    if closed_thresh < avg_ear < drowsy_thresh:
+        warnings.append("Ojos semi-cerrados (Somnolencia)")
+    elif avg_ear <= closed_thresh:
+        # Ya cubierto por "Ojos cerrados" en get_attention_warnings, pero aseguramos
+        if "Ojos cerrados o semi-cerrados" not in warnings:
+             warnings.append("Ojos cerrados")
     
     return AttentionMetrics(
         engagement_index=ei,

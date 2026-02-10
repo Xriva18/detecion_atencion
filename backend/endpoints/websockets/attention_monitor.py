@@ -133,6 +133,9 @@ async def websocket_attention_monitor(websocket: WebSocket):
     blink_tracker = BlinkRateTracker(window_seconds=60.0)
     drowsiness_tracker = DrowsinessTracker(threshold_seconds=2.0)  # 2 segundos umbral
     
+    # Estado de calibración (Offset)
+    calibration_offset = {"yaw": 0.0, "pitch": 0.0}
+    
     gaze_service, head_pose_service, blink_service = get_services()
     
     gaze_available = gaze_service.is_ready()
@@ -144,6 +147,14 @@ async def websocket_attention_monitor(websocket: WebSocket):
             try:
                 data = await websocket.receive_text()
                 message = json.loads(data)
+                
+                # Manejo de mensajes de control (Calibración)
+                if "type" in message and message["type"] == "calibration":
+                    offset = message.get("offset", {})
+                    calibration_offset["yaw"] = float(offset.get("yaw", 0.0))
+                    calibration_offset["pitch"] = float(offset.get("pitch", 0.0))
+                    print(f"[AttentionMonitor] 🎯 Calibración recibida: {calibration_offset}")
+                    continue
                 
                 if "image" not in message:
                     await manager.send_json_message({"error": "Falta 'image'"}, websocket)
@@ -174,7 +185,8 @@ async def websocket_attention_monitor(websocket: WebSocket):
                         "ear": {"left": 0.0, "right": 0.0},
                         "status": "distracted",
                         "warnings": ["No se detectó rostro"],
-                        "face_detected": False
+                        "face_detected": False,
+                        "is_calibrated": (calibration_offset["yaw"] != 0 or calibration_offset["pitch"] != 0)
                     }, websocket)
                     continue
                 
@@ -188,16 +200,44 @@ async def websocket_attention_monitor(websocket: WebSocket):
                 
                 # 2. Gaze (L2CS-Net)
                 if gaze_available:
-                    # Calc Gaze using inferred BBox
+                    # Calc BBox from landmarks (min/max)
                     xs = [l.x * img_width for l in face_landmarks]
                     ys = [l.y * img_height for l in face_landmarks]
-                    x1, y1 = int(min(xs)), int(min(ys))
-                    w, h = int(max(xs) - min(xs)), int(max(ys) - min(ys))
+                    x_min, x_max = min(xs), max(xs)
+                    y_min, y_max = min(ys), max(ys)
+                    
+                    # Convert to Square BBox + Padding
+                    # L2CS-Net needs face + some context. 1.5x provides good balance.
+                    # GazeService no longer adds internal margin.
+                    w_box = x_max - x_min
+                    h_box = y_max - y_min
+                    size = max(w_box, h_box) * 1.5
+                    
+                    center_x = x_min + w_box / 2
+                    center_y = y_min + h_box / 2
+                    
+                    x1 = int(center_x - size / 2)
+                    y1 = int(center_y - size / 2)
+                    w = int(size)
+                    h = int(size)
+                    
+                    # Ensure within bounds
+                    x1 = max(0, x1)
+                    y1 = max(0, y1)
+                    w = min(w, img_width - x1)
+                    h = min(h, img_height - y1)
+                    
                     bbox = (x1, y1, w, h)
                     
                     gaze_result = gaze_service.predict_gaze(img, bbox, timestamp)
-                    gaze_yaw = gaze_result.yaw if gaze_result and gaze_result.success else 0.0
-                    gaze_pitch = gaze_result.pitch if gaze_result and gaze_result.success else 0.0
+                    
+                    raw_yaw = gaze_result.yaw if gaze_result and gaze_result.success else 0.0
+                    raw_pitch = gaze_result.pitch if gaze_result and gaze_result.success else 0.0
+                    
+                    # Aplicar calibración
+                    gaze_yaw = raw_yaw - calibration_offset["yaw"]
+                    gaze_pitch = raw_pitch - calibration_offset["pitch"]
+                    
                 else:
                     gaze_yaw = head_pose.yaw * 0.5
                     gaze_pitch = head_pose.pitch * 0.5
@@ -210,8 +250,9 @@ async def websocket_attention_monitor(websocket: WebSocket):
                 right_ear = blink_service._calculate_ear_from_landmarks(face_landmarks, right_indices, img.shape)
                 avg_ear = (left_ear + right_ear) / 2.0
                 
-                # "Ojos cerrados" umbral estándar
-                eyes_closed = avg_ear < settings.ear_threshold
+                # "Ojos cerrados" umbral (solo cuando están realmente cerrados)
+                threshold = getattr(settings, 'ear_distraction_threshold', 0.13)
+                eyes_closed = avg_ear < threshold
                 
                 # 4. Tasa de Parpadeo
                 blinks_per_minute = blink_tracker.update(eyes_closed, timestamp)
@@ -227,12 +268,17 @@ async def websocket_attention_monitor(websocket: WebSocket):
                 
                 # Override status if asleep
                 final_status = metrics.status
+                final_score = metrics.engagement_index
+                
                 if is_asleep:
                     final_status = "asleep"
-                    metrics.warnings.insert(0, "¡DORMIDO DETECTADO!")
+                    final_score = 0.0  # Force critical score
+                    # Asegurar alerta
+                    if "¡DORMIDO DETECTADO!" not in metrics.warnings:
+                        metrics.warnings.insert(0, "¡DORMIDO DETECTADO!")
                 
                 response = {
-                    "attention_score": round(metrics.engagement_index, 3),
+                    "attention_score": round(final_score, 3),
                     "gaze": {"pitch": round(gaze_pitch, 2), "yaw": round(gaze_yaw, 2)},
                     "pose": {"yaw": round(head_pose.yaw, 2), "pitch": round(head_pose.pitch, 2), "roll": round(head_pose.roll, 2)},
                     "blink": eyes_closed,

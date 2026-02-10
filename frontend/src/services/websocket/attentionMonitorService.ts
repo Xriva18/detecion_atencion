@@ -103,6 +103,23 @@ export class AttentionMonitorService {
     }
 
     /**
+     * Envía un mensaje genérico al servidor.
+     */
+    sendMessage(data: any): boolean {
+        if (this.ws?.readyState !== WebSocket.OPEN) {
+            return false;
+        }
+
+        try {
+            this.ws.send(JSON.stringify(data));
+            return true;
+        } catch (error) {
+            console.error("[AttentionMonitorService] Error enviando mensaje:", error);
+            return false;
+        }
+    }
+
+    /**
      * Envía un frame de imagen al servidor.
      * @param base64Image - Imagen en formato Base64
      */

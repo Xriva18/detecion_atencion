@@ -7,11 +7,17 @@ Pitch y Yaw de la mirada directamente desde la imagen.
 
 El modelo usa un enfoque de "Appearance-based gaze estimation"
 que no requiere calibración del usuario.
+
+IMPORTANTE: La arquitectura debe coincidir EXACTAMENTE con el checkpoint
+descargado (L2CSNet_gaze360.pkl). Las claves del state_dict son:
+  - Backbone: conv1, bn1, layer1..layer4 (ResNet50 estándar, sin prefijo)
+  - FC heads: fc_yaw_gaze, fc_pitch_gaze (no fc_yaw/fc_pitch)
+  - Ángulos Gaze360: 90 bins, rango [-180, 176] grados (fórmula: idx * 4 - 180)
 """
 import os
 import torch
 import torch.nn as nn
-from torchvision import models
+from torchvision.models.resnet import Bottleneck
 from typing import Optional
 import urllib.request
 from pathlib import Path
@@ -21,36 +27,55 @@ class L2CSNet(nn.Module):
     """
     Implementación de L2CS-Net para estimación de mirada.
     
-    Arquitectura:
-    - Backbone: ResNet50 pre-entrenado
-    - Cabeza: Clasificación binning + Regresión para Pitch y Yaw
-    
-    El modelo usa un enfoque de clasificación (bins) combinado con
-    regresión para predecir ángulos de mirada con alta precisión.
+    Arquitectura que coincide EXACTAMENTE con el checkpoint Gaze360:
+    - Backbone: ResNet50 con Bottleneck blocks (capas expuestas al top-level)
+    - Cabeza: fc_yaw_gaze y fc_pitch_gaze (90 bins cada una)
+    - Conversión: idx * 4 - 180 grados (rango completo Gaze360)
     """
     
     def __init__(self, num_bins: int = 90):
-        """
-        Inicializa L2CS-Net.
-        
-        Args:
-            num_bins: Número de bins para clasificación de ángulos
-        """
         super(L2CSNet, self).__init__()
         self.num_bins = num_bins
+        self.inplanes = 64
         
-        # Backbone ResNet50
-        resnet = models.resnet50(weights=None)
+        # ---- Backbone ResNet50 (capas al top-level para coincidir con checkpoint) ----
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.bn1 = nn.BatchNorm2d(64)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         
-        # Remover la última capa FC
-        self.features = nn.Sequential(*list(resnet.children())[:-1])
+        # ResNet50 layers: [3, 4, 6, 3] Bottleneck blocks
+        self.layer1 = self._make_layer(Bottleneck, 64, 3)
+        self.layer2 = self._make_layer(Bottleneck, 128, 4, stride=2)
+        self.layer3 = self._make_layer(Bottleneck, 256, 6, stride=2)
+        self.layer4 = self._make_layer(Bottleneck, 512, 3, stride=2)
         
-        # Cabezas de clasificación para Pitch y Yaw
-        self.fc_yaw = nn.Linear(2048, num_bins)
-        self.fc_pitch = nn.Linear(2048, num_bins)
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         
-        # Índices para softmax
+        # ---- Cabezas de clasificación (nombres que coinciden con checkpoint) ----
+        self.fc_yaw_gaze = nn.Linear(512 * Bottleneck.expansion, num_bins)  # 2048 -> 90
+        self.fc_pitch_gaze = nn.Linear(512 * Bottleneck.expansion, num_bins)  # 2048 -> 90
+        
+        # Índices para expected value
         self.idx_tensor = torch.arange(num_bins, dtype=torch.float32)
+    
+    def _make_layer(self, block, planes, blocks, stride=1):
+        """Construye una capa ResNet con Bottleneck blocks."""
+        downsample = None
+        if stride != 1 or self.inplanes != planes * block.expansion:
+            downsample = nn.Sequential(
+                nn.Conv2d(self.inplanes, planes * block.expansion,
+                          kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(planes * block.expansion),
+            )
+        
+        layers = []
+        layers.append(block(self.inplanes, planes, stride, downsample))
+        self.inplanes = planes * block.expansion
+        for _ in range(1, blocks):
+            layers.append(block(self.inplanes, planes))
+        
+        return nn.Sequential(*layers)
     
     def forward(self, x: torch.Tensor) -> tuple:
         """
@@ -62,13 +87,23 @@ class L2CSNet(nn.Module):
         Returns:
             Tuple (yaw_predicted, pitch_predicted) en grados
         """
-        # Extraer features
-        features = self.features(x)
-        features = features.view(features.size(0), -1)
+        # Backbone
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
         
-        # Predicción de clasificación
-        yaw_logits = self.fc_yaw(features)
-        pitch_logits = self.fc_pitch(features)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+        
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)  # Flatten: (B, 2048)
+        
+        # Predicción de clasificación (90 bins)
+        yaw_logits = self.fc_yaw_gaze(x)
+        pitch_logits = self.fc_pitch_gaze(x)
         
         # Softmax
         yaw_softmax = torch.softmax(yaw_logits, dim=1)
@@ -78,9 +113,9 @@ class L2CSNet(nn.Module):
         idx_tensor = self.idx_tensor.to(x.device)
         
         # Calcular ángulos esperados (regresión suave)
-        # Rango: -90° a +90° dividido en num_bins
-        yaw_predicted = torch.sum(yaw_softmax * idx_tensor, dim=1) * (180.0 / self.num_bins) - 90.0
-        pitch_predicted = torch.sum(pitch_softmax * idx_tensor, dim=1) * (180.0 / self.num_bins) - 90.0
+        # Gaze360 usa: idx * 4 - 180 (rango -180° a +176°)
+        yaw_predicted = torch.sum(yaw_softmax * idx_tensor, dim=1) * 4.0 - 180.0
+        pitch_predicted = torch.sum(pitch_softmax * idx_tensor, dim=1) * 4.0 - 180.0
         
         return yaw_predicted, pitch_predicted
 
@@ -94,7 +129,7 @@ class GazeModelLoader:
     _model: Optional[L2CSNet] = None
     _device: Optional[torch.device] = None
     
-    # URL de descarga del modelo (placeholder - necesita URL real)
+    # URL de descarga del modelo
     MODEL_URL = "https://github.com/Ahmednull/L2CS-Net/releases/download/v1.0/L2CSNet_gaze360.pkl"
     
     def __new__(cls):
@@ -108,7 +143,6 @@ class GazeModelLoader:
     @classmethod
     def get_model_path(cls) -> Path:
         """Retorna la ruta donde se guarda el modelo."""
-        # Buscar en el directorio models del backend
         backend_dir = Path(__file__).parent.parent
         models_dir = backend_dir / "models"
         models_dir.mkdir(exist_ok=True)
@@ -118,12 +152,6 @@ class GazeModelLoader:
     def download_model(cls, force: bool = False) -> bool:
         """
         Descarga el modelo si no existe.
-        
-        Args:
-            force: Si True, descarga aunque ya exista
-            
-        Returns:
-            True si se descargó exitosamente o ya existe
         """
         model_path = cls.get_model_path()
         
@@ -134,15 +162,10 @@ class GazeModelLoader:
         print(f"[GazeModelLoader] Descargando modelo desde {cls.MODEL_URL}...")
         
         try:
-            # Crear directorio si no existe
             model_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Descargar
             urllib.request.urlretrieve(cls.MODEL_URL, str(model_path))
-            
             print(f"[GazeModelLoader] ✅ Modelo descargado en {model_path}")
             return True
-            
         except Exception as e:
             print(f"[GazeModelLoader] ❌ Error descargando modelo: {e}")
             print("[GazeModelLoader] Por favor descarga manualmente L2CSNet_gaze360.pkl")
@@ -152,12 +175,6 @@ class GazeModelLoader:
     def load_model(cls, device: Optional[str] = None) -> Optional[L2CSNet]:
         """
         Carga el modelo L2CS-Net.
-        
-        Args:
-            device: Dispositivo ('cuda', 'cpu', o None para auto-detectar)
-            
-        Returns:
-            Modelo cargado o None si falla
         """
         # Retornar modelo cacheado si ya está cargado
         if cls._model is not None:
@@ -175,45 +192,67 @@ class GazeModelLoader:
         # Verificar si existe el modelo
         if not model_path.exists():
             print(f"[GazeModelLoader] ⚠️ Modelo no encontrado en {model_path}")
-            # Intentar descargar
             if not cls.download_model():
                 return None
         
         try:
-            # Crear modelo
+            # Crear modelo con arquitectura correcta
             model = L2CSNet(num_bins=90)
             
             # Cargar pesos
             print(f"[GazeModelLoader] Cargando pesos desde {model_path}...")
             
-            # Cargar checkpoint
-            checkpoint = torch.load(str(model_path), map_location=cls._device)
+            # Cargar checkpoint (OrderedDict directo)
+            state_dict = torch.load(str(model_path), map_location=cls._device)
             
-            # Los pesos pueden estar en 'state_dict' o directamente
-            if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
-                state_dict = checkpoint['state_dict']
-            elif isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
-                state_dict = checkpoint['model_state_dict']
-            else:
-                state_dict = checkpoint
+            # Si es un dict con 'state_dict' key, extraerlo
+            if isinstance(state_dict, dict) and 'state_dict' in state_dict:
+                state_dict = state_dict['state_dict']
+            elif isinstance(state_dict, dict) and 'model_state_dict' in state_dict:
+                state_dict = state_dict['model_state_dict']
             
-            # Remover prefijos si existen (ej: 'module.')
+            # Remover prefijo 'module.' si existe (de DataParallel)
             new_state_dict = {}
             for k, v in state_dict.items():
                 name = k.replace('module.', '')
                 new_state_dict[name] = v
             
-            model.load_state_dict(new_state_dict, strict=False)
+            # Cargar con strict=True para detectar errores reales
+            # Ignorar solo fc_finetune que no usamos
+            model_keys = set(model.state_dict().keys())
+            ckpt_keys = set(new_state_dict.keys())
+            
+            # Filtrar claves que no están en nuestro modelo (como fc_finetune)
+            filtered_state_dict = {k: v for k, v in new_state_dict.items() if k in model_keys}
+            
+            missing = model_keys - set(filtered_state_dict.keys())
+            unexpected = ckpt_keys - model_keys
+            
+            if missing:
+                # Solo idx_tensor debería faltar (buffer, no parámetro)
+                real_missing = [k for k in missing if 'idx_tensor' not in k and 'num_batches_tracked' not in k]
+                if real_missing:
+                    print(f"[GazeModelLoader] ⚠️ Claves faltantes: {real_missing}")
+            
+            if unexpected:
+                print(f"[GazeModelLoader] ℹ️ Claves ignoradas del checkpoint: {unexpected}")
+            
+            model.load_state_dict(filtered_state_dict, strict=False)
             model.to(cls._device)
             model.eval()
             
-            cls._model = model
-            print("[GazeModelLoader] ✅ Modelo cargado exitosamente")
+            # Verificación: contar parámetros cargados
+            loaded_count = len(filtered_state_dict)
+            total_count = len(model_keys)
+            print(f"[GazeModelLoader] ✅ Modelo cargado: {loaded_count}/{total_count} pesos cargados")
             
+            cls._model = model
             return model
             
         except Exception as e:
             print(f"[GazeModelLoader] ❌ Error cargando modelo: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
     @classmethod
