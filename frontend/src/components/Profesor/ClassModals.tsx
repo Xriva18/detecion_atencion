@@ -117,39 +117,15 @@ export function EditClassModal({
   onSave: (classData: Class) => void;
 }) {
   const [formData, setFormData] = useState<Class | null>(classItem);
-  const [imagePreview, setImagePreview] = useState<string | null>(
-    classItem?.imageUrl || null
-  );
 
   // Actualizar el estado cuando cambie classItem o isOpen
   useEffect(() => {
     if (isOpen && classItem) {
       setFormData({ ...classItem });
-      setImagePreview(classItem.imageUrl || null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, classItem?.id]);
+  }, [isOpen, classItem]);
 
   if (!isOpen || !formData || !classItem) return null;
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Crear URL de vista previa
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setImagePreview(result);
-        setFormData({ ...formData, imageUrl: result });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleRemoveImage = () => {
-    setImagePreview(null);
-    setFormData({ ...formData, imageUrl: undefined });
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -173,55 +149,6 @@ export function EditClassModal({
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-5">
-          {/* Campo de Imagen */}
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-[#111318]">
-              Imagen de la Clase
-            </span>
-            <div className="flex flex-col gap-3">
-              {imagePreview && (
-                <div className="relative w-full h-48 rounded-lg overflow-hidden border border-[#e5e7eb]">
-                  <Image
-                    src={imagePreview}
-                    alt="Vista previa"
-                    fill
-                    className="object-cover"
-                    unoptimized
-                  />
-                  <button
-                    type="button"
-                    onClick={handleRemoveImage}
-                    className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-colors z-10"
-                    title="Eliminar imagen"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">
-                      delete
-                    </span>
-                  </button>
-                </div>
-              )}
-              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-primary/30 rounded-lg bg-primary/5 hover:bg-primary/10 transition-colors cursor-pointer">
-                <div className="flex flex-col items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-3xl">
-                    cloud_upload
-                  </span>
-                  <span className="text-sm text-[#111318] font-medium">
-                    {imagePreview ? "Cambiar imagen" : "Subir imagen"}
-                  </span>
-                  <span className="text-xs text-[#616f89]">
-                    PNG, JPG, WEBP (Max 5MB)
-                  </span>
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
-              </label>
-            </div>
-          </div>
-
           <label className="flex flex-col gap-2">
             <span className="text-sm font-medium text-[#111318]">
               Nombre de la Clase
@@ -235,6 +162,7 @@ export function EditClassModal({
               }
             />
           </label>
+
           <label className="flex flex-col gap-2">
             <span className="text-sm font-medium text-[#111318]">
               Descripción
@@ -247,6 +175,48 @@ export function EditClassModal({
               }
             />
           </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-[#111318]">
+              Horario
+            </span>
+            <input
+              className="w-full rounded-lg border border-[#dbdfe6] bg-white text-[#111318] h-12 px-4 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+              type="text"
+              placeholder="Ej: Lunes y Miércoles • 10:00 AM - 12:00 PM"
+              value={formData.schedule || ""}
+              onChange={(e) =>
+                setFormData({ ...formData, schedule: e.target.value })
+              }
+            />
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-[#111318]">
+              Estado
+            </span>
+            <div className="relative">
+              <select
+                className="w-full appearance-none rounded-lg border border-[#dbdfe6] bg-white text-[#111318] h-12 px-4 pr-10 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all cursor-pointer"
+                value={formData.status === "Activo" ? "true" : "false"}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    status: e.target.value === "true" ? "Activo" : "Archivado"
+                  })
+                }
+              >
+                <option value="true">Activo</option>
+                <option value="false">Inactivo / Archivado</option>
+              </select>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#616f89]">
+                <span className="material-symbols-outlined text-[20px]">
+                  expand_more
+                </span>
+              </span>
+            </div>
+          </label>
+
           <div className="flex gap-3 justify-end pt-4 border-t border-[#e5e7eb]">
             <button
               type="button"
@@ -272,14 +242,22 @@ export function CodeModal({
   isOpen,
   onClose,
   classItem,
-  onGenerateNewCode,
+  onSave,
 }: {
   isOpen: boolean;
   onClose: () => void;
   classItem: Class | null;
-  onGenerateNewCode?: () => void;
+  onSave: (code: string) => void;
 }) {
-  const code = classItem?.accessCode || "ABC123";
+  const [code, setCode] = useState(classItem?.accessCode || "");
+  const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && classItem) {
+      setCode(classItem.accessCode || "");
+      setIsEditing(false);
+    }
+  }, [isOpen, classItem]);
 
   if (!isOpen || !classItem) return null;
 
@@ -287,6 +265,18 @@ export function CodeModal({
     navigator.clipboard.writeText(code).then(() => {
       alert("Código copiado al portapapeles");
     });
+  };
+
+  const handleGenerateRandom = () => {
+    const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    setCode(newCode);
+    setIsEditing(true);
+  };
+
+  const handleSave = () => {
+    onSave(code);
+    setIsEditing(false);
+    onClose();
   };
 
   return (
@@ -312,47 +302,61 @@ export function CodeModal({
             <p className="text-lg font-semibold text-[#111318] mb-6">
               {classItem.name}
             </p>
-            <div className="bg-gray-50 rounded-lg p-6 border-2 border-dashed border-primary/30">
-              <p className="text-4xl font-bold text-primary tracking-widest mb-2">
-                {code}
-              </p>
-              <div className="flex flex-wrap items-center justify-center gap-2">
+
+            <div className="bg-gray-50 rounded-lg p-6 border-2 border-dashed border-primary/30 flex flex-col items-center gap-4">
+              <input
+                type="text"
+                value={code}
+                onChange={(e) => {
+                  setCode(e.target.value.toUpperCase());
+                  setIsEditing(true);
+                }}
+                className="text-4xl font-bold text-primary tracking-widest text-center bg-transparent border-b-2 border-transparent focus:border-primary focus:outline-none w-full uppercase"
+              />
+
+              <div className="flex flex-wrap items-center justify-center gap-4">
                 <button
                   type="button"
                   onClick={handleCopyCode}
-                  className="text-sm text-primary hover:text-blue-700 flex items-center gap-1"
+                  className="text-sm text-primary hover:text-blue-700 flex items-center gap-1 font-medium"
                 >
                   <span className="material-symbols-outlined text-[18px]">
                     content_copy
                   </span>
                   Copiar código
                 </button>
-                {onGenerateNewCode && (
-                  <button
-                    type="button"
-                    onClick={onGenerateNewCode}
-                    className="text-sm text-primary hover:text-blue-700 flex items-center gap-1"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">
-                      refresh
-                    </span>
-                    Generar nuevo
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={handleGenerateRandom}
+                  className="text-sm text-primary hover:text-blue-700 flex items-center gap-1 font-medium"
+                >
+                  <span className="material-symbols-outlined text-[18px]">
+                    autorenew
+                  </span>
+                  Generar Nuevo
+                </button>
               </div>
             </div>
+
             <p className="text-xs text-[#616f89] mt-4">
-              Comparte este código con tus estudiantes para que se unan a la
-              clase.
+              Comparte este código con tus estudiantes para que se unan a la clase.
             </p>
           </div>
+
           <div className="flex gap-3 justify-end pt-4 border-t border-[#e5e7eb]">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-lg bg-primary hover:bg-blue-700 text-white font-medium transition-colors"
+              className="px-5 py-2.5 rounded-lg border border-[#dbdfe6] text-[#111318] font-medium hover:bg-gray-50 transition-colors"
             >
               Cerrar
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="px-5 py-2.5 rounded-lg bg-primary hover:bg-blue-700 text-white font-medium transition-colors shadow-sm"
+            >
+              Guardar
             </button>
           </div>
         </div>

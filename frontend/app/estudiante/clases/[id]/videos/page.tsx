@@ -36,19 +36,27 @@ export default function VideosClasePage() {
         }
 
         // 2. Get Videos (Tasks)
-        const tasksRes = await api.get(`/tasks/class/${classId}`);
+        const tasksRes = await api.get(`/tasks/student/class/${classId}`);
         if (tasksRes.data) {
           // Transformar tasks a formato UI
-          const mappedVideos = tasksRes.data.map((task: any) => ({
-            id: task.id,
-            title: task.title,
-            description: task.description || "Sin descripción",
-            duration: "10:00", // Placeholder
-            uploadDate: task.created_at || new Date().toISOString(),
-            watched: false, // Placeholder
-            available: true,
-            videoUrl: task.video_url
-          }));
+          const mappedVideos = tasksRes.data.map((task: any) => {
+            // Formatear duración seg -> min:seg
+            const durSec = task.duration_seconds || 0;
+            const mins = Math.floor(durSec / 60);
+            const secs = durSec % 60;
+            const durationStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+            return {
+              id: task.id,
+              title: task.title,
+              description: task.description || "Sin descripción",
+              duration: durationStr,
+              uploadDate: task.created_at || new Date().toISOString(),
+              watched: task.watched,
+              available: task.is_active !== false, // Si es nulo asumo activo
+              videoUrl: task.video_url
+            };
+          });
           setVideos(mappedVideos);
         }
       } catch (error) {
@@ -115,236 +123,107 @@ export default function VideosClasePage() {
         </button>
 
         {/* Class Info */}
-        <div className="bg-white rounded-xl border border-[#e5e7eb] p-6 shadow-sm">
-          <h1 className="text-2xl font-bold text-[#111318] mb-2">
-            {classInfo.name}
-          </h1>
-          <p className="text-[#616f89] mb-4">{classInfo.description}</p>
-          <div className="flex items-center gap-4 text-sm text-[#616f89]">
-            <div className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-[18px]">
-                person
-              </span>
-              <span>{classInfo.professor}</span>
+        {/* Opcional: Si el usuario quiere simplificar más, podríamos quitar esto, pero la imagen muestra solo título de la sección. 
+            El usuario dijo "asi es el diseño debes eliminar el apartado de resultados". 
+            Mantendré la info de la clase por contexto, pero si la imagen no lo tiene... 
+            La imagen muestra "Videos de la Clase". 
+            Mantendré la info de clase arriba como header contextual.
+        */}
+
+        {/* Lista de Videos */}
+        <div className="flex flex-col gap-4">
+          <h2 className="text-xl font-bold text-[#111318]">
+            Videos de la Clase
+          </h2>
+
+          {loading ? (
+            <div className="flex justify-center p-10">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
             </div>
-            <div className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-[18px]">
-                video_library
-              </span>
-              <span>{videos.length} Videos</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="bg-white rounded-xl border border-[#e5e7eb] shadow-sm overflow-hidden">
-          <div className="flex border-b border-[#e5e7eb]">
-            <button
-              onClick={() => setActiveTab("videos")}
-              className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${activeTab === "videos"
-                ? "text-primary border-b-2 border-primary bg-primary/5"
-                : "text-[#616f89] hover:text-[#111318] hover:bg-gray-50"
-                }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <span className="material-symbols-outlined">video_library</span>
-                <span>Videos</span>
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab("resultados")}
-              className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${activeTab === "resultados"
-                ? "text-primary border-b-2 border-primary bg-primary/5"
-                : "text-[#616f89] hover:text-[#111318] hover:bg-gray-50"
-                }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <span className="material-symbols-outlined">analytics</span>
-                <span>Resultados</span>
-              </div>
-            </button>
-          </div>
-
-          {/* Tab Content */}
-          <div className="p-6">
-            {activeTab === "videos" && (
-              <div className="flex flex-col gap-4">
-                <h2 className="text-xl font-bold text-[#111318]">
-                  Videos de la Clase
-                </h2>
-
-                {loading ? (
-                  <div className="flex justify-center p-10">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          ) : (
+            <div className="bg-white rounded-xl border border-[#e5e7eb] overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-white border-b border-[#e5e7eb] text-xs uppercase tracking-wider text-[#616f89] font-bold">
+                      <th className="px-6 py-4 text-left">Video</th>
+                      <th className="px-6 py-4 text-center">Duración</th>
+                      <th className="px-6 py-4 text-center">Estado</th>
+                      <th className="px-6 py-4 text-center">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#e5e7eb]">
                     {videos.map((video) => (
-                      <Link
+                      <tr
                         key={video.id}
-                        href={`/estudiante/clases/${classId}/videos/${video.id}`}
-                        className={`flex flex-col bg-white rounded-xl border border-[#e5e7eb] shadow-sm overflow-hidden hover:shadow-md transition-shadow group cursor-pointer ${!video.available ? "opacity-60" : ""
-                          }`}
+                        className="group hover:bg-gray-50 transition-colors"
                       >
-                        <div className="relative h-40 bg-gray-200 flex items-center justify-center">
-                          <span className="material-symbols-outlined text-6xl text-gray-400">
-                            play_circle
-                          </span>
-                          {video.watched && (
-                            <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
-                              <span className="material-symbols-outlined text-sm">
-                                check_circle
-                              </span>
-                              Visto
-                            </div>
-                          )}
-                          {!video.available && (
-                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                              <span className="text-white font-semibold">
-                                Próximamente
+                        <td className="px-6 py-5">
+                          <div className="flex items-start gap-4">
+                            {/* Thumbnail / Icon placeholder */}
+                            <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${video.watched ? 'bg-green-100 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
+                              <span className="material-symbols-outlined text-[24px]">
+                                {video.watched ? 'check_circle' : 'play_circle'}
                               </span>
                             </div>
-                          )}
-                        </div>
-                        <div className="p-4 flex flex-col gap-2">
-                          <h3 className="text-lg font-bold text-[#111318] group-hover:text-primary transition-colors line-clamp-2">
-                            {video.title}
-                          </h3>
-                          <p className="text-sm text-[#616f89] line-clamp-2">
-                            {video.description}
-                          </p>
-                          <div className="flex items-center justify-between mt-2 text-xs text-[#616f89]">
-                            <div className="flex items-center gap-1">
-                              <span className="material-symbols-outlined text-[16px]">
-                                schedule
-                              </span>
-                              <span>{video.duration}</span>
+                            <div>
+                              <h3 className="text-base font-bold text-[#111318] mb-1">
+                                {video.title}
+                              </h3>
+                              <p className="text-sm text-[#616f89] line-clamp-2 max-w-md">
+                                {video.description}
+                              </p>
                             </div>
-                            <span>
-                              {new Date(video.uploadDate).toLocaleDateString(
-                                "es-ES",
-                                {
-                                  day: "numeric",
-                                  month: "long",
-                                }
-                              )}
-                            </span>
                           </div>
-                        </div>
-                      </Link>
+                        </td>
+                        <td className="px-6 py-5 text-center">
+                          <span className="text-sm font-medium text-[#616f89]">
+                            {video.duration} min
+                          </span>
+                        </td>
+                        <td className="px-6 py-5 text-center">
+                          <span
+                            className={`inline-flex px-3 py-1 rounded-full text-xs font-bold border ${video.watched
+                              ? "bg-green-50 text-green-700 border-green-200"
+                              : "bg-orange-50 text-orange-700 border-orange-200"
+                              }`}
+                          >
+                            {video.watched ? "Visto" : "Pendiente"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-5 text-center">
+                          <Link
+                            href={`/estudiante/clases/${classId}/videos/${video.id}`}
+                            className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-sm transition-all ${video.watched
+                              ? "bg-gray-100 text-[#616f89] hover:bg-gray-200"
+                              : "bg-primary text-white hover:bg-blue-700 shadow-md shadow-primary/20"
+                              }`}
+                          >
+                            <span className="material-symbols-outlined text-[20px]">
+                              {video.watched ? 'replay' : 'play_arrow'}
+                            </span>
+                            {video.watched ? "Ver de Nuevo" : "Ver Video"}
+                          </Link>
+                        </td>
+                      </tr>
                     ))}
                     {videos.length === 0 && (
-                      <div className="col-span-full py-12 text-center">
-                        <span className="material-symbols-outlined text-4xl text-gray-300 mb-2">videocam_off</span>
-                        <p className="text-gray-500">No hay videos disponibles en esta clase.</p>
-                      </div>
+                      <tr>
+                        <td colSpan={4} className="py-12 text-center text-gray-500">
+                          <div className="flex flex-col items-center gap-2">
+                            <span className="material-symbols-outlined text-4xl text-gray-300">
+                              videocam_off
+                            </span>
+                            <p>No hay videos disponibles en esta clase.</p>
+                          </div>
+                        </td>
+                      </tr>
                     )}
-                  </div>
-                )}
+                  </tbody>
+                </table>
               </div>
-            )}
-
-            {activeTab === "resultados" && (
-              <div className="flex flex-col gap-4">
-                <h2 className="text-xl font-bold text-[#111318]">
-                  Resultados de Videos
-                </h2>
-                {mockVideoResults.length > 0 ? (
-                  <div className="bg-white rounded-xl border border-[#e5e7eb] shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="bg-gray-50 border-b border-[#e5e7eb] text-xs uppercase tracking-wider text-[#616f89] font-semibold">
-                            <th className="px-6 py-4 text-left">Video</th>
-                            <th className="px-6 py-4 text-center">Calificación</th>
-                            <th className="px-6 py-4 text-center">
-                              Nivel de Atención
-                            </th>
-                            <th className="px-6 py-4 text-center">Respuestas</th>
-                            <th className="px-6 py-4 text-left">Fecha</th>
-                            <th className="px-6 py-4 text-right">Acción</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[#e5e7eb]">
-                          {mockVideoResults.map((result) => (
-                            <tr
-                              key={result.videoId}
-                              className="hover:bg-gray-50 transition-colors"
-                            >
-                              <td className="px-6 py-4">
-                                <p className="text-sm font-bold text-[#111318]">
-                                  {result.videoTitle}
-                                </p>
-                              </td>
-                              <td className="px-6 py-4 text-center">
-                                <span
-                                  className={`text-lg font-bold ${getScoreColor(
-                                    result.score
-                                  )}`}
-                                >
-                                  {result.score}%
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 text-center">
-                                <span
-                                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${getAttentionBadgeColor(
-                                    result.attentionLevel
-                                  )}`}
-                                >
-                                  {result.attentionLevel}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 text-center">
-                                <p className="text-sm text-[#616f89]">
-                                  {result.correctAnswers}/
-                                  {result.totalQuestions} correctas
-                                </p>
-                              </td>
-                              <td className="px-6 py-4">
-                                <p className="text-sm text-[#616f89]">
-                                  {new Date(result.date).toLocaleDateString(
-                                    "es-ES",
-                                    {
-                                      day: "numeric",
-                                      month: "short",
-                                      year: "numeric",
-                                    }
-                                  )}
-                                </p>
-                              </td>
-                              <td className="px-6 py-4 text-right">
-                                <Link
-                                  href={`/estudiante/resultados/${result.resultId}`}
-                                  className="px-4 py-2 bg-primary hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors inline-flex items-center gap-2"
-                                >
-                                  <span className="material-symbols-outlined text-lg">
-                                    visibility
-                                  </span>
-                                  Ver Detalle
-                                </Link>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-white rounded-xl border border-[#e5e7eb] p-12 text-center">
-                    <span className="material-symbols-outlined text-6xl text-gray-300 mb-4">
-                      analytics
-                    </span>
-                    <p className="text-lg font-medium text-[#111318] mb-2">
-                      No hay resultados aún
-                    </p>
-                    <p className="text-sm text-[#616f89]">
-                      Completa los videos para ver tus resultados aquí
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </>

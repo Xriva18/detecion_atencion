@@ -47,11 +47,6 @@ export default function CrearClasePage() {
             <Header
                 title="Crear Nueva Clase"
                 subtitle="Configura una nueva asignatura"
-                user={{
-                    name: "Prof. Carlos Ruiz",
-                    email: "carlos.ruiz@edu.com",
-                    role: "Profesor",
-                }}
             />
             <div className="p-6 md:p-8 max-w-3xl mx-auto w-full">
                 <div className="bg-white rounded-xl shadow-sm border border-[#e5e7eb] p-8">

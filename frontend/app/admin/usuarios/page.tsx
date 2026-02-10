@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import api from "@/services/api";
 import Header from "@/components/Admin/Header";
 import UserTable from "@/components/Admin/UserTable";
 import {
@@ -22,55 +23,10 @@ interface User {
   classes?: string[];
 }
 
-// Mock data - En producción esto vendría de una API
-const mockUsers: User[] = [
-  {
-    id: "1",
-    name: "Ana García",
-    email: "ana.garcia@edu.com",
-    role: "Estudiante",
-    status: "Activo",
-    lastActivity: "Hace 2 horas",
-    classes: ["Matemáticas I", "Física Básica", "Programación Web"],
-  },
-  {
-    id: "2",
-    name: "Carlos Ruiz",
-    email: "carlos.ruiz@edu.com",
-    role: "Profesor",
-    status: "Activo",
-    lastActivity: "Ayer",
-    classes: ["Álgebra Lineal", "Cálculo Diferencial"],
-  },
-  {
-    id: "3",
-    name: "Elena M.",
-    email: "elena.m@edu.com",
-    role: "Estudiante",
-    status: "Inactivo",
-    lastActivity: "Hace 5 días",
-  },
-  {
-    id: "4",
-    name: "Jorge T.",
-    email: "jorge.t@edu.com",
-    role: "Admin",
-    status: "Activo",
-    lastActivity: "Hace 5 minutos",
-  },
-  {
-    id: "5",
-    name: "Lucía P.",
-    email: "lucia.p@edu.com",
-    role: "Estudiante",
-    status: "Activo",
-    lastActivity: "Nunca",
-    classes: ["Introducción a la Programación"],
-  },
-];
+
 
 export default function UsuariosPage() {
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("Todos");
   const [statusFilter, setStatusFilter] = useState<string>("Todos");
@@ -82,17 +38,41 @@ export default function UsuariosPage() {
     useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
-  // Filtrar usuarios
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.id.includes(searchTerm);
-    const matchesRole = roleFilter === "Todos" || user.role === roleFilter;
-    const matchesStatus =
-      statusFilter === "Todos" || user.status === statusFilter;
-    return matchesSearch && matchesRole && matchesStatus;
-  });
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const [totalUsers, setTotalUsers] = useState(0);
+
+  // Fetch users from API
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const skip = (currentPage - 1) * pageSize;
+        const params: any = { skip, limit: pageSize };
+        if (searchTerm) params.search = searchTerm;
+        if (roleFilter !== "Todos") params.role = roleFilter;
+        if (statusFilter !== "Todos") params.status = statusFilter;
+
+        const res = await api.get("/users/", { params });
+        if (res.data) {
+          setUsers(res.data.items || []);
+          setTotalUsers(res.data.total || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      }
+    };
+
+    const timeoutId = setTimeout(() => {
+      fetchUsers();
+    }, 300);
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, roleFilter, statusFilter, currentPage, pageSize]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, roleFilter, statusFilter]);
 
   const handleViewDetails = (user: User) => {
     setSelectedUser(user);
@@ -114,31 +94,62 @@ export default function UsuariosPage() {
     setIsResetPasswordModalOpen(true);
   };
 
-  const handleSaveUser = (userData: Partial<User>) => {
+  const handleSaveUser = async (userData: Partial<User>) => {
     if (selectedUser) {
       // Editar usuario existente
-      setUsers(
-        users.map((u) => (u.id === selectedUser.id ? { ...u, ...userData } : u))
-      );
+      try {
+        await api.put(`/users/${selectedUser.id}`, userData);
+
+        // Refresh users
+        const params: any = { skip: 0, limit: 100 };
+        if (searchTerm) params.search = searchTerm;
+        if (roleFilter !== "Todos") params.role = roleFilter;
+        if (statusFilter !== "Todos") params.status = statusFilter;
+
+        const res = await api.get("/users/", { params });
+        if (res.data && res.data.items) {
+          setUsers(res.data.items);
+        }
+      } catch (error) {
+        console.error("Error updating user:", error);
+      }
     } else {
       // Crear nuevo usuario
-      const newUser: User = {
-        id: Date.now().toString(),
-        name: userData.name || "",
-        email: userData.email || "",
-        role: (userData.role as User["role"]) || "Estudiante",
-        status: (userData.status as User["status"]) || "Activo",
-        lastActivity: "Nunca",
-        classes: [],
-      };
-      setUsers([...users, newUser]);
+      try {
+        await api.post("/users/", {
+          name: userData.name,
+          email: userData.email,
+          password: (userData as any).password,
+          role: userData.role,
+        });
+
+        // Refresh users
+        const params: any = { skip: 0, limit: 100 };
+        if (searchTerm) params.search = searchTerm;
+        if (roleFilter !== "Todos") params.role = roleFilter;
+        if (statusFilter !== "Todos") params.status = statusFilter;
+
+        const res = await api.get("/users/", { params });
+        if (res.data && res.data.items) {
+          setUsers(res.data.items);
+        }
+      } catch (error) {
+        console.error("Error creating user:", error);
+      }
     }
     setSelectedUser(null);
   };
 
-  const handleDeleteUser = () => {
+  const handleDeleteUser = async () => {
     if (selectedUser) {
-      setUsers(users.filter((u) => u.id !== selectedUser.id));
+      try {
+        await api.delete(`/users/${selectedUser.id}`);
+
+        // Remove from local state immediately
+        setUsers(users.filter((u) => u.id !== selectedUser.id));
+      } catch (error) {
+        console.error("Error deleting user:", error);
+      }
       setSelectedUser(null);
     }
   };
@@ -146,6 +157,36 @@ export default function UsuariosPage() {
   const handleResetPasswordConfirm = (password?: string) => {
     // TODO: Implementar lógica de restablecimiento de contraseña
     console.log("Restablecer contraseña para:", selectedUser?.email, password);
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      const params: any = {};
+      if (searchTerm) params.search = searchTerm;
+      if (roleFilter !== "Todos") params.role = roleFilter;
+      if (statusFilter !== "Todos") params.status = statusFilter;
+
+      // Usamos responseType: 'blob' para recibir el archivo binario
+      const res = await api.get("/users/export", {
+        params,
+        responseType: "blob",
+      });
+
+      // Crear un link temporal para descargar el archivo
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `usuarios_plataforma_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+
+      // Limpieza
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error al exportar usuarios:", error);
+      alert("Error al generar el archivo Excel");
+    }
   };
 
   return (
@@ -223,7 +264,8 @@ export default function UsuariosPage() {
             </div>
             <button
               className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#dbdfe6] bg-white text-[#616f89] hover:bg-gray-50 transition-colors"
-              title="Exportar"
+              title="Exportar a Excel"
+              onClick={handleExportExcel}
             >
               <span className="material-symbols-outlined text-[20px]">
                 download
@@ -234,7 +276,12 @@ export default function UsuariosPage() {
 
         {/* Table Section */}
         <UserTable
-          users={filteredUsers}
+          users={users}
+          totalItems={totalUsers}
+          pageSize={pageSize}
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
           onViewDetails={handleViewDetails}
           onEdit={handleEdit}
           onResetPassword={handleResetPassword}

@@ -105,11 +105,32 @@ async def register(request: RegisterRequest):
             confirmed=confirmed,
         )
         
+        # Auto-matricular estudiantes en TODAS las clases activas
+        if request.role == 3:  # Estudiante
+            try:
+                all_classes = supabase.table("classes") \
+                    .select("id") \
+                    .eq("ctr_esatdo", 1) \
+                    .eq("is_active", True) \
+                    .execute()
+                
+                if all_classes.data:
+                    enrollments = [
+                        {"class_id": cls["id"], "student_id": user_id, "estado": 1}
+                        for cls in all_classes.data
+                    ]
+                    supabase.table("class_enrollments").upsert(enrollments).execute()
+                    print(f"[Register] ✅ Estudiante auto-matriculado en {len(enrollments)} clases")
+            except Exception as enroll_error:
+                # No bloquear el registro si falla la matrícula
+                print(f"[Register] ⚠️ Error en auto-matrícula: {enroll_error}")
+        
         return RegisterResponse(
             message="Confirmación de correo enviada",
             detail="Por favor, verifica tu correo electrónico para activar tu cuenta",
             user=user_response
         )
+        
         
     except HTTPException:
         # Re-lanzar HTTPException sin modificar

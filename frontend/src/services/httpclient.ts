@@ -8,7 +8,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 /**
  * Timeout por defecto para las peticiones (en milisegundos)
  */
-const DEFAULT_TIMEOUT = 5000; // 5 segundos
+const DEFAULT_TIMEOUT = 15000; // 15 segundos
 
 /**
  * Headers comunes para todas las peticiones
@@ -36,9 +36,28 @@ const httpClient: AxiosInstance = axios.create(DEFAULT_CONFIG);
  * Interceptor de peticiones: permite modificar la configuración antes de enviar
  */
 httpClient.interceptors.request.use(
-  (config) => {
+  async (config) => {
     // Aquí puedes agregar lógica adicional antes de enviar la petición
     // Por ejemplo: agregar tokens de autenticación, logging, etc.
+    try {
+      // Intentar obtener la sesión de supabase desde localStorage
+      // Nota: Supabase guarda la sesión en localStorage con una clave específica
+      // Usaremos un método genérico para buscar cualquier clave que empiece con sb- y termine con -auth-token
+      if (typeof window !== 'undefined') {
+        const storageKey = Object.keys(localStorage).find(key => key.startsWith('sb-') && key.endsWith('-auth-token'));
+        if (storageKey) {
+          const sessionData = localStorage.getItem(storageKey);
+          if (sessionData) {
+            const session = JSON.parse(sessionData);
+            if (session.access_token) {
+              config.headers.Authorization = `Bearer ${session.access_token}`;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Error attaching auth token", e);
+    }
     return config;
   },
   (error) => {
