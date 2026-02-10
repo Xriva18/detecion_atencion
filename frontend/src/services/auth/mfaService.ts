@@ -8,7 +8,7 @@ export interface MFAEnrollResult {
 
 export interface MFAFactor {
   id: string;
-  type: string;
+  factor_type: string;
   status: string;
   friendly_name?: string;
 }
@@ -29,7 +29,7 @@ export class MFAService {
    */
   static async getAuthenticatorAssuranceLevel(): Promise<AALLevel> {
     const supabase = createClientSupabase();
-    
+
     const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
     if (error) {
@@ -61,7 +61,7 @@ export class MFAService {
    */
   static async enrollMFA(): Promise<MFAEnrollResult> {
     const supabase = createClientSupabase();
-    
+
     const { data, error } = await supabase.auth.mfa.enroll({
       factorType: "totp",
     });
@@ -120,7 +120,7 @@ export class MFAService {
         challengeId: challengeId,
         code: code.toString().trim(), // Asegurar que sea string y sin espacios
       });
-      
+
       console.log("Respuesta de verify:", {
         hasData: !!data,
         hasError: !!error,
@@ -147,12 +147,12 @@ export class MFAService {
         const errorMessage = error?.message || "Error desconocido al verificar código";
 
         // Mensajes de error más específicos
-        if (errorMessage.toLowerCase().includes("invalid code") || 
-            errorMessage.toLowerCase().includes("invalid") ||
-            errorMessage.toLowerCase().includes("incorrect")) {
+        if (errorMessage.toLowerCase().includes("invalid code") ||
+          errorMessage.toLowerCase().includes("invalid") ||
+          errorMessage.toLowerCase().includes("incorrect")) {
           throw new Error("El código ingresado es incorrecto. Por favor, verifica que el código de Google Authenticator sea el correcto y que no haya expirado.");
-        } else if (errorMessage.toLowerCase().includes("not found") || 
-                   errorMessage.toLowerCase().includes("challenge")) {
+        } else if (errorMessage.toLowerCase().includes("not found") ||
+          errorMessage.toLowerCase().includes("challenge")) {
           throw new Error("No se encontró el factor MFA o el challenge. Por favor, intenta activar nuevamente.");
         } else if (errorMessage.toLowerCase().includes("expired")) {
           throw new Error("El código ha expirado. Por favor, ingresa un código nuevo de Google Authenticator.");
@@ -170,8 +170,8 @@ export class MFAService {
     } catch (unexpectedError) {
       // Capturar cualquier error inesperado
       console.error("Error inesperado en verifyMFA:", unexpectedError);
-      const errorMessage = unexpectedError instanceof Error 
-        ? unexpectedError.message 
+      const errorMessage = unexpectedError instanceof Error
+        ? unexpectedError.message
         : String(unexpectedError);
       throw new Error(`Error inesperado al verificar código: ${errorMessage}`);
     }
@@ -209,7 +209,7 @@ export class MFAService {
         // Obtener el factor para verificar
         const factors = await this.listFactors();
         const factor = factors.find((f) => f.id === factorId);
-        
+
         if (!factor) {
           throw new Error("No se encontró el factor MFA a desactivar");
         }
@@ -229,8 +229,8 @@ export class MFAService {
 
     if (error) {
       // Si el error es por falta de AAL2, proporcionar mensaje más claro
-      if (error.message?.toLowerCase().includes("aal2") || 
-          error.message?.toLowerCase().includes("aal")) {
+      if (error.message?.toLowerCase().includes("aal2") ||
+        error.message?.toLowerCase().includes("aal")) {
         throw new Error(
           "AAL2_REQUIRED: Se requiere verificar tu identidad con MFA antes de desactivar. " +
           "Por favor, ingresa tu código de autenticación."
@@ -284,22 +284,24 @@ export class MFAService {
 
     if (error) {
       const errorMessage = error.message || "Error desconocido";
-      
+
       // Mensajes de error más específicos
-      if (errorMessage.toLowerCase().includes("invalid code") || 
-          errorMessage.toLowerCase().includes("invalid") ||
-          errorMessage.toLowerCase().includes("incorrect")) {
+      if (errorMessage.toLowerCase().includes("invalid code") ||
+        errorMessage.toLowerCase().includes("invalid") ||
+        errorMessage.toLowerCase().includes("incorrect")) {
         throw new Error("El código ingresado es incorrecto. Por favor, verifica que el código sea el correcto.");
       } else if (errorMessage.toLowerCase().includes("expired")) {
         throw new Error("El código ha expirado. Por favor, ingresa un código nuevo.");
       }
-      
+
       throw new Error(`Error al verificar código MFA: ${errorMessage}`);
     }
 
     // La sesión puede no estar disponible en todos los contextos (ej: durante desactivación)
     // Por eso no lanzamos error si no hay sesión, solo la retornamos si existe
-    return data.session || null;
+    // Obtener la sesión actual después de la verificación
+    const { data: sessionData } = await supabase.auth.getSession();
+    return sessionData.session;
   }
 
   /**
@@ -333,15 +335,15 @@ export class MFAService {
 
     if (verifyError) {
       const errorMessage = verifyError.message || "Error desconocido";
-      
-      if (errorMessage.toLowerCase().includes("invalid code") || 
-          errorMessage.toLowerCase().includes("invalid") ||
-          errorMessage.toLowerCase().includes("incorrect")) {
+
+      if (errorMessage.toLowerCase().includes("invalid code") ||
+        errorMessage.toLowerCase().includes("invalid") ||
+        errorMessage.toLowerCase().includes("incorrect")) {
         throw new Error("El código ingresado es incorrecto. Por favor, verifica que el código sea el correcto.");
       } else if (errorMessage.toLowerCase().includes("expired")) {
         throw new Error("El código ha expirado. Por favor, ingresa un código nuevo.");
       }
-      
+
       throw new Error(`Error al verificar código: ${errorMessage}`);
     }
 

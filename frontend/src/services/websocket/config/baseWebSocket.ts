@@ -125,8 +125,12 @@ export class BaseWebSocket<T = unknown> {
       const message = typeof data === "string" ? data : JSON.stringify(data);
       this.ws.send(message);
     } catch (error) {
-      const wsError = handleWebSocketError(error, this.state, undefined);
-      wsError.type = WebSocketErrorType.MESSAGE_ERROR;
+      const wsError = new WebSocketError(
+        WebSocketErrorType.MESSAGE_ERROR,
+        error instanceof Error ? error.message : "Error al enviar mensaje",
+        this.state,
+        error
+      );
       this.handleError(wsError);
     }
   }
@@ -200,8 +204,12 @@ export class BaseWebSocket<T = unknown> {
 
         this.callbacks.onMessage?.(data);
       } catch (error) {
-        const wsError = handleWebSocketError(error, this.state);
-        wsError.type = WebSocketErrorType.MESSAGE_ERROR;
+        const wsError = new WebSocketError(
+          WebSocketErrorType.MESSAGE_ERROR,
+          error instanceof Error ? error.message : "Error al procesar mensaje",
+          this.state,
+          error
+        );
         this.handleError(wsError);
       }
     };
