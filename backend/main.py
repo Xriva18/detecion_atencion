@@ -10,9 +10,9 @@ from services.gaze_model_loader import GazeModelLoader
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Load model on startup
-    print("[Lifespan] Cargando modelo L2CS-Net...")
-    GazeModelLoader.load_model()
+    # NO cargar modelo al inicio para evitar timeout de puerto en Render
+    # El modelo se cargará lazy en el primer request de gaze detection
+    print("[Lifespan] Servidor iniciando (modelo L2CS-Net se cargará bajo demanda)...")
     yield
     # Clean up (optional)
     GazeModelLoader.unload()
@@ -57,3 +57,8 @@ setup_exception_handlers(app)
 
 # Registrar todas las rutas
 register_routes(app)
+
+# Health check endpoint para Render
+@app.get("/")
+async def health_check():
+    return {"status": "ok", "service": "detecion-atencion-backend"}
