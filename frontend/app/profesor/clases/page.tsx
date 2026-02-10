@@ -216,7 +216,9 @@ const mockStudentVideoResults: StudentVideoResult[] = [
   },
 ];
 
-export default function GestiónClasesPage() {
+import { Suspense } from "react";
+
+function GestiónClasesContent() {
   /* 
     Refactorizado para usar API Real
   */
@@ -1308,6 +1310,14 @@ export default function GestiónClasesPage() {
         </div>
       )}
     </>
+  );
+}
+
+export default function GestiónClasesPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-[#616f89]">Cargando...</div>}>
+      <GestiónClasesContent />
+    </Suspense>
   );
 }
 

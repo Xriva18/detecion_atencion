@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import useBlinkDetectionWebSocket from '@/hooks/useBlinkDetectionWebSocket';
+
 
 interface VideoCanvasBlinkProps {
     width?: number;
