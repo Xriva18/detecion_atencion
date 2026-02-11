@@ -38,17 +38,17 @@ async def register(request: RegisterRequest):
     supabase: Client = get_supabase_client()
     
     try:
-        # Verificar si el usuario ya existe en la tabla profiles
+        # Verificar si el usuario ya existe en Supabase Auth o Profiles
+        # (Auth check is handled by sign_up, but we check profiles as a secondary guard)
         existing_user = supabase.table("profiles").select("email").eq("email", request.email).execute()
         
         if existing_user.data and len(existing_user.data) > 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="El usuario con este email ya está registrado"
+                detail="El usuario con este email ya está registrado en el sistema"
             )
         
-        # Crear usuario en Supabase Auth con user_metadata
-        # user_metadata (raw_user_meta_data) - puede ser modificado por el usuario
+        # 1. Crear usuario en Supabase Auth
         auth_response = supabase.auth.sign_up({
             "email": request.email,
             "password": request.password,
@@ -59,7 +59,6 @@ async def register(request: RegisterRequest):
             }
         })
         
-        # Verificar si se creó el usuario correctamente
         if not auth_response.user:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -68,44 +67,39 @@ async def register(request: RegisterRequest):
         
         user_id = auth_response.user.id
         
-        # Actualizar app_metadata (raw_app_meta_data) con el rol
-        # app_metadata solo puede ser modificado usando Admin API (service_role key)
-        # IMPORTANTE: Necesitas usar la service_role key en SUPABASE_KEY para que funcione
+        # 2. CREACIÓN ROBUSTA DE PERFIL (Explícita)
+        # No dependemos solo de triggers de base de datos para asegurar consistencia
         try:
-            # El método admin.update_user_by_id requiere service_role key
-            if hasattr(supabase.auth, 'admin') and hasattr(supabase.auth.admin, 'update_user_by_id'):
-                update_response = supabase.auth.admin.update_user_by_id(
+            profile_data = {
+                "user_id": user_id,
+                "full_name": request.full_name,
+                "email": request.email,
+                "role": request.role,
+                "is_active": True,
+                "ctr_estado": 1
+            }
+            # Usamos upsert por si el trigger ya lo creó, pero aseguramos que los datos sean correctos
+            supabase.table("profiles").upsert(profile_data).execute()
+            print(f"[Register] ✅ Perfil creado explícitamente para {user_id}")
+        except Exception as profile_error:
+            print(f"[Register] ⚠️ Error creando perfil explícitamente: {profile_error}")
+            # No bloqueamos el flujo, pero lo logueamos. Si falla por FK, los siguientes pasos fallarán.
+
+        # 3. Actualizar app_metadata (Requiere service_role key)
+        # Si SUPABASE_KEY es anon, esto fallará silenciosamente o con error 403
+        try:
+            if hasattr(supabase.auth, 'admin') and supabase.auth.admin:
+                supabase.auth.admin.update_user_by_id(
                     user_id,
-                    {
-                        "app_metadata": {
-                            "role": request.role
-                        }
-                    }
+                    {"app_metadata": {"role": request.role}}
                 )
-        except (AttributeError, Exception) as metadata_error:
-            # Si el método admin no está disponible o falla, continuamos
-            # El usuario ya fue creado, solo falta el metadata
-            # En producción, esto podría requerir un proceso de limpieza
-            # Ignoramos errores relacionados con profiles ya que no los usamos
-            error_str = str(metadata_error)
-            if "profiles" not in error_str.lower() and "confirmed" not in error_str.lower():
-                # Solo logueamos errores que no sean relacionados con profiles
-                pass
+                print(f"[Register] ✅ Role {request.role} asignado vía Admin API")
+            else:
+                print("[Register] ⚠️ No se pudo asignar role: La clave de Supabase no tiene permisos de Admin (Service Role)")
+        except Exception as metadata_error:
+            print(f"[Register] ⚠️ Falló actualización de app_metadata: {metadata_error}")
         
-        # Obtener información del usuario desde auth_response
-        user = auth_response.user
-        confirmed = user.email_confirmed_at is not None
-        
-        # Crear respuesta con los datos del usuario desde auth.users
-        user_response = UserResponse(
-            user_id=str(user.id),
-            email=user.email or request.email,
-            full_name=request.full_name,
-            role=request.role,
-            confirmed=confirmed,
-        )
-        
-        # Auto-matricular estudiantes en TODAS las clases activas
+        # 4. Auto-matricular estudiantes en TODAS las clases activas
         if request.role == 3:  # Estudiante
             try:
                 all_classes = supabase.table("classes") \
@@ -122,63 +116,34 @@ async def register(request: RegisterRequest):
                     supabase.table("class_enrollments").upsert(enrollments).execute()
                     print(f"[Register] ✅ Estudiante auto-matriculado en {len(enrollments)} clases")
             except Exception as enroll_error:
-                # No bloquear el registro si falla la matrícula
                 print(f"[Register] ⚠️ Error en auto-matrícula: {enroll_error}")
         
+        user = auth_response.user
+        confirmed = user.email_confirmed_at is not None
+        
         return RegisterResponse(
-            message="Confirmación de correo enviada",
-            detail="Por favor, verifica tu correo electrónico para activar tu cuenta",
-            user=user_response
+            message="Registro exitoso",
+            detail="Se ha creado tu cuenta. Si el correo de confirmación está habilitado en Supabase, verifícalo.",
+            user=UserResponse(
+                user_id=str(user.id),
+                email=user.email or request.email,
+                full_name=request.full_name,
+                role=request.role,
+                confirmed=confirmed,
+            )
         )
         
-        
     except HTTPException:
-        # Re-lanzar HTTPException sin modificar
         raise
     except Exception as e:
-        # Manejar errores de Supabase (usuario duplicado, etc.)
         error_message = str(e)
-        
-        # PRIMERO: Detectar errores comunes de Supabase (antes de verificar profiles)
-        if "User already registered" in error_message or "already registered" in error_message.lower():
+        if "already registered" in error_message.lower():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El usuario con este email ya está registrado"
             )
-        elif "Invalid email" in error_message or "invalid" in error_message.lower():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="El email proporcionado no es válido"
-            )
-        elif "Password" in error_message and ("weak" in error_message.lower() or "invalid" in error_message.lower()):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="La contraseña no cumple con los requisitos de seguridad"
-            )
-        
-        # DESPUÉS: Ignorar errores relacionados con profiles.confirmed solo si el usuario se creó exitosamente
-        if "profiles" in error_message.lower() and "confirmed" in error_message.lower():
-            # Si el usuario se creó exitosamente pero hay un error con profiles, 
-            # retornamos éxito ya que el usuario está en auth.users
-            if auth_response and auth_response.user:
-                user = auth_response.user
-                confirmed = user.email_confirmed_at is not None
-                user_response = UserResponse(
-                    user_id=str(user.id),
-                    email=user.email or request.email,
-                    full_name=request.full_name,
-                    role=request.role,
-                    confirmed=confirmed,
-                )
-                return RegisterResponse(
-                    message="Confirmación de correo enviada",
-                    detail="Por favor, verifica tu correo electrónico para activar tu cuenta",
-                    user=user_response
-                )
-        
-        # Si llegamos aquí, es un error desconocido
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al registrar el usuario: {error_message}"
-            )
+        )
 

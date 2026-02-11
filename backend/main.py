@@ -31,18 +31,24 @@ import os
 allowed_origins = [
     "http://localhost:3000",
     "http://localhost:3001",
+    "http://localhost:3002",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:3001",
+    "http://127.0.0.1:3002",
     "http://0.0.0.0:3000",
 ]
 
 # En producción, agregar el dominio de Vercel
 frontend_url = os.getenv("FRONTEND_URL")
 if frontend_url:
+    # Normalizar URL eliminando slash final
+    frontend_url = frontend_url.rstrip('/')
     allowed_origins.append(frontend_url)
-    # También agregar la versión con www si existe
-    if not frontend_url.startswith("www."):
+    # También agregar la versión con www si no la tiene
+    if "https://" in frontend_url and not frontend_url.startswith("https://www."):
         allowed_origins.append(frontend_url.replace("https://", "https://www."))
+    # Permitir variaciones comunes de Vercel (opcional, basado en prefijo)
+    # Si frontend_url es algo como 'https://myapp.vercel.app', permitimos ese origin
 
 app.add_middleware(
     CORSMiddleware,
