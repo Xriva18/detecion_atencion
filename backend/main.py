@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import matplotlib
+matplotlib.use('Agg')  # Configurar backend no interactivo para evitar crash en Render
 
 from core.config import settings
 from core.exceptions import setup_exception_handlers
@@ -50,9 +52,14 @@ if frontend_url:
     # Permitir variaciones comunes de Vercel (opcional, basado en prefijo)
     # Si frontend_url es algo como 'https://myapp.vercel.app', permitimos ese origin
 
+# Agregar soporte para dominios de Hugging Face Spaces (*.hf.space)
+# No podemos usar wildcard parcial en CORSMiddleware, así que usamos allow_origin_regex
+allow_origin_regex = r"https://.*\.hf\.space"
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins if not os.getenv("ALLOW_ALL_ORIGINS") else ["*"],
+    allow_origin_regex=allow_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

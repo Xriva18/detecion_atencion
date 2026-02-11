@@ -38,11 +38,21 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar código del backend
 COPY . .
 
-# Crear directorio para uploads temporales
-RUN mkdir -p temp_uploads models
+# Crear directorio para uploads temporales y modelos con permisos correctos
+RUN mkdir -p temp_uploads models .cache && \
+    chmod -R 777 temp_uploads models .cache
 
-# Puerto (Render pasa $PORT como variable de entorno)
-EXPOSE 10000
+# Configurar usuario no-root para Hugging Face (ID 1000)
+RUN useradd -m -u 1000 user
+USER user
+ENV HOME=/app
+
+# Variables de entorno para caché en directorio escribible
+ENV NUMBA_CACHE_DIR=/app/.cache
+ENV MPLCONFIGDIR=/app/.cache
+
+# Puerto (Hugging Face usa 7860 por defecto)
+EXPOSE 7860
 
 # Comando de inicio
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000}
+CMD uvicorn main:app --host 0.0.0.0 --port 7860

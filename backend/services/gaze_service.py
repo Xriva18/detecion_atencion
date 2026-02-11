@@ -69,8 +69,30 @@ class GazeService:
         self.semaphore = asyncio.Semaphore(max_concurrent)
         self.device = device
         
-        # Cargar modelo (singleton)
-        self.model = GazeModelLoader.load_model(device)
+        # Verificar LIGHTWEIGHT_MODE
+        import os
+        self.lightweight = os.getenv("LIGHTWEIGHT_MODE", "false").lower() == "true"
+        
+        if self.lightweight:
+            print("[GazeService] 🚀 LIGHTWEIGHT_MODE activado: Saltando carga de L2CS-Net (ResNet50)")
+            self.model = None
+            self._model_loaded = False
+        else:
+            # Cargar modelo (singleton)
+            # Forzar carga en CPU si hay poca memoria
+            import torch
+            import gc
+            
+            # Limpiar memoria antes de cargar
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                
+            self.model = GazeModelLoader.load_model(device)
+            self._model_loaded = self.model is not None
+            
+            # Limpiar despues de cargar
+            gc.collect()
         
         # Filtro 1-Euro para suavizado (2 dimensiones: pitch, yaw)
         self.use_filter = use_filter
@@ -183,6 +205,9 @@ class GazeService:
             GazeResult con pitch y yaw en grados
         """
         if not self._model_loaded:
+            if self.lightweight:
+                # Retornar 0.0 sin error en modo ligero
+                return GazeResult(pitch=0.0, yaw=0.0, success=True)
             print("[GazeService] ⚠️ Modelo no cargado")
             return GazeResult(pitch=0.0, yaw=0.0, success=False)
         

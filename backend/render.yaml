@@ -17,5 +17,7 @@ services:
         sync: false
       - key: PYTHONDONTWRITEBYTECODE
         value: 1
+      - key: LIGHTWEIGHT_MODE
+        value: true
     healthCheckPath: /
     autoDeploy: true
